@@ -1,0 +1,1022 @@
+
+* Configuration
+
+#+name: tag-number
+#+BEGIN_SRC R
+1
+#+END_SRC
+
+#+name: stage-directory
+#+BEGIN_SRC R
+"/home/jj/stage/yolov3-tf2"
+#+END_SRC
+
+
+#+name: yolov3-tf2-training-tag
+#+BEGIN_SRC sh :eval no :results output :exports none :noweb yes
+export TAG=<<tag-number()>>
+#+END_SRC
+#+RESULTS: yolov3-tf2-training-tag
+
+
+#+name: yolov3-tf2-local-stage
+#+BEGIN_SRC sh :eval no:results output :exports none :noweb yes
+export STAGE=<<stage-directory()>>
+#+END_SRC
+
+#+RESULTS: yolov3-tf2-local-stage
+
+
+
+
+
+
+* Docker =marcus2002/yolov3-tf2-training=
+
+** Create directory for =marcus2002/yolov3-tf2-training=
+#+BEGIN_SRC sh :eval no-export :results output
+mkdir yolov3-tf2-training
+#+END_SRC
+
+#+RESULTS:
+
+
+** Tangle =usage.txt=
+
+#+BEGIN_SRC txt :tangle yolov3-tf2-training/usage.txt :noweb yes
+
+marcus2002/yolov3-tf2-training - Dockerize yolov3-tf2 from  https://github.com/zzh8829/yolov3-tf2
+
+Configuration
+====================
+
+To configure version (docker tag):
+
+    <<yolov3-tf2-training-tag>>
+
+To configure stage directory (here example under $HOME-directory)
+
+    <<yolov3-tf2-local-stage>>
+
+
+Check installation
+====================
+
+To get usage:
+
+     <<yolov3-tf2-training-usage>>
+
+
+To show python versions dockered:
+
+    <<yolov3-tf2-training-python-etc>>
+
+To show tensorflow version dockered:
+
+    <<yolov3-tf2-training-tf>>
+
+
+To enter in to the container
+
+    <<yolov3-tf2-training-run-it()>>
+
+gpu-checker.py
+====================
+
+To get gpu-checker usage:
+  
+    <<gpu-checker-usage>>
+
+To test gpu support
+
+    <<gpu-checker-test>>
+
+
+Run gpu-checker on CPU
+
+    <<gpu-checker-cpu>>
+
+
+Run yolov3-tf2 in docker
+====================
+
+Prepare directory structure under =$STAGE= directory
+
+    <<yolov3-tf2-directories>>
+
+
+Download darknet weights =yolov3.weights= to =$STAGE/weights/= directory
+
+    <<yolov3-tf2-weights>>
+
+Inspect docker volume bindings:
+
+    <<yolov3-tf-volumes>>
+
+Convert =$STAGE/weights/yolov3.weights= to =$STAGE/data/yolov3-cnv.tf=
+
+    <<yolov3-tf2-convert>>
+
+Run image detection using converted weights in =$STAGE/data/yolov3-cnv.tf=
+
+    <<yolov3-tf2-detect>>
+
+Download  =VOCdevkit= and extract it to =$STAGE/voc2012_raw=
+
+    <<yolov3-tf2-voc>>
+
+Convert training data in =$STAGE/voc2012_raw=  to =$STAGE/data/voc2012_train.tfrecord=
+
+    <<yolov3-tf2-tr1>>
+
+Convert validation data in =$STAGE/voc2012_raw=  to =$STAGE/data/voc2012_val.tfrecord=
+
+   <<yolov3-tf2-tr2>>
+
+Ensure that tranlation was successful
+
+   <<yolov3-tf2-random>>
+
+and 
+
+   <<yolov3-tf2-random2>>
+
+Train dataset =$STAGE/data/voc2012_train.tfrecord= to detect =20=
+names in =voc2012.names= staring with initial weights
+=$STAGE/data/yolov3-cnv.tf= from =yolov3-tf2= using validation dataset
+=$STAGE/data/voc2012_val.tfrecord=
+ 
+   <<yolov3-tf2-1>>
+
+#+END_SRC
+
+
+** Tangle =marcus2002/yolov3-tf2-training/gpu-checker.py=
+
+#+name: gpu-checker.py
+#+BEGIN_SRC python :eval no :results output :noweb no :tangle yolov3-tf2-training/gpu-checker.py
+  # Tangled from docker.org - do not edit
+  import sys
+  import tensorflow as tf
+  from tensorflow.python.client import device_lib
+
+  def usage():
+      print( sys.argv[0], " -  tensorflow GPU tester usage" )
+      print( sys.argv[0], " cpu|gpu [0-9]|device NAME [0-9]|list|test|versions" )
+      exit(1)
+
+
+  if len(sys.argv) < 2:
+      usage()
+
+  if sys.argv[1] == "cpu":
+      ## with tf.device('/physical_device:CPU:0'):
+      with tf.device('/cpu:0'):
+          print( "Using CPU")
+          a = tf.constant([1.0, 2.0, 3.0, 4.0, 5.0, 6.0], shape=[2, 3], name='a')
+          b = tf.constant([1.0, 2.0, 3.0, 4.0, 5.0, 6.0], shape=[3, 2], name='b')
+          c = tf.matmul(a, b)
+
+
+      # with tf.compat.v1.Session() as sess:
+      with tf.compat.v1.Session(config=tf.compat.v1.ConfigProto(log_device_placement=True)) as sess:
+          # print (sess.run(c))
+          print ("c=", c)
+
+  elif sys.argv[1] == "versions":
+      print( "tf.__version__:", tf.__version__)
+      print( "sys.version (python):", sys.version)
+
+
+  elif sys.argv[1] == "gpu":
+      device_name= "/{}:{}".format(sys.argv[1], sys.argv[2] )
+      print( "device_name=", device_name)
+      with tf.device(device_name):
+          a = tf.constant([1.0, 2.0, 3.0, 4.0, 5.0, 6.0], shape=[2, 3], name='a')
+          b = tf.constant([1.0, 2.0, 3.0, 4.0, 5.0, 6.0], shape=[3, 2], name='b')
+          c = tf.matmul(a, b)
+
+      with tf.compat.v1.Session(config=tf.compat.v1.ConfigProto(log_device_placement=True)) as sess:
+          # print (sess.run(c))
+          print ("c=", c)
+      # with tf.compat.v1.Session() as sess:
+      #     print (sess.run(c))
+
+  elif sys.argv[1] == "device":
+      device_name= "/{}:{}".format(sys.argv[2], sys.argv[3] )
+      print( "device_name=", device_name)
+      with tf.device(device_name):
+          a = tf.constant([1.0, 2.0, 3.0, 4.0, 5.0, 6.0], shape=[2, 3], name='a')
+          b = tf.constant([1.0, 2.0, 3.0, 4.0, 5.0, 6.0], shape=[3, 2], name='b')
+          c = tf.matmul(a, b)
+
+      with tf.compat.v1.Session(config=tf.compat.v1.ConfigProto(log_device_placement=True)) as sess:
+          # print (sess.run(c))
+          print ("c=", c)
+      # with tf.compat.v1.Session() as sess:
+      #     print (sess.run(c))
+
+  elif sys.argv[1] == "list":
+
+      print("device_lib.list_local_devices() =", device_lib.list_local_devices()  )
+      with tf.compat.v1.Session() as sess:
+          devices = sess.list_devices()
+      print( "Devices:", str(devices))
+
+  elif sys.argv[1] == "test":
+
+     print( "tf.test.is_gpu_available()=", tf.test.is_gpu_available() )
+     print( "tf.config.list_physical_devices('GPU')=", tf.config.list_physical_devices('GPU'))
+     print( "tf.config.list_physical_devices('CPU')=", tf.config.list_physical_devices('CPU'))   
+     print( "tf.test.is_built_with_cuda()=", tf.test.is_built_with_cuda() )
+
+  else:
+      usage()
+
+  exit(0)
+
+#+END_SRC
+
+
+** Tangle =marcus2002/yolov3-tf2-training/Dockerfile=
+
+#+BEGIN_SRC sh :tangle yolov3-tf2-training/Dockerfile
+  FROM tensorflow/tensorflow:2.2.0rc2-gpu-py3
+
+  RUN apt-get update && \
+     apt-get install -y   \
+          curl \
+          git \
+          libsm6 libxext6 libxrender-dev
+
+  # Install yolov3-tf2 
+  RUN git clone https://github.com/zzh8829/yolov3-tf2
+
+  # GPU version
+  RUN sed -e '/tensorflow/d' yolov3-tf2/requirements-gpu.txt > yolov3-tf2/req.txt && \
+        cd yolov3-tf2 && pip install -r req.txt
+
+
+  # Entry
+  COPY gpu-checker.py /gpu-checker.py
+  COPY usage.txt /yolov3-tf2
+
+  # Default outputs usage
+  CMD [ "cat", "/yolov3-tf2/usage.txt" ]
+  #CMD  [ "/bin/bash" ]
+
+#+END_SRC
+
+
+
+** Build =marcus2002/yolov3-tf2-training
+
+Showe content of directory to dockerize
+
+#+BEGIN_SRC sh :eval no-export :results output
+ls -ltr yolov3-tf2-training
+#+END_SRC
+
+#+RESULTS:
+: total 8
+: -rw-rw-r-- 1 jj jj 2747 huhti 24 07:58 gpu-checker.py
+: -rw-rw-r-- 1 jj jj   98 huhti 24 08:02 usage.txt
+
+#+END_SRC
+
+Create Docker =marcus2002/yolov3-tf2-training= from directory =yolov3-tf2-training=
+
+#+BEGIN_SRC sh :eval no-export :results output :var TAG=tag-number
+docker build -t marcus2002/yolov3-tf2-training:$TAG yolov3-tf2-training
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+Sending build context to Docker daemon  8.192kB
+Step 1/7 : FROM tensorflow/tensorflow:2.2.0rc2-gpu-py3
+ ---> 35ae3aacb6ff
+Step 2/7 : RUN apt-get update &&    apt-get install -y           curl         git         libsm6 libxext6 libxrender-dev
+ ---> Using cache
+ ---> ca76f453a356
+Step 3/7 : RUN git clone https://github.com/zzh8829/yolov3-tf2
+ ---> Running in 1db9bcd8ffc0
+[91mCloning into 'yolov3-tf2'...
+[0mRemoving intermediate container 1db9bcd8ffc0
+ ---> d48e530f9863
+Step 4/7 : RUN sed -e '/tensorflow/d' yolov3-tf2/requirements-gpu.txt > yolov3-tf2/req.txt &&       cd yolov3-tf2 && pip install -r req.txt
+ ---> Running in 4745f47e592a
+Obtaining file:///yolov3-tf2 (from -r req.txt (line 5))
+Collecting opencv-python==4.1.1.26
+  Downloading opencv_python-4.1.1.26-cp36-cp36m-manylinux1_x86_64.whl (28.7 MB)
+Collecting lxml
+  Downloading lxml-4.5.0-cp36-cp36m-manylinux1_x86_64.whl (5.8 MB)
+Collecting tqdm
+  Downloading tqdm-4.45.0-py2.py3-none-any.whl (60 kB)
+Requirement already satisfied: numpy>=1.11.3 in /usr/local/lib/python3.6/dist-packages (from opencv-python==4.1.1.26->-r req.txt (line 1)) (1.18.2)
+Installing collected packages: opencv-python, lxml, tqdm, yolov3-tf2
+  Running setup.py develop for yolov3-tf2
+Successfully installed lxml-4.5.0 opencv-python-4.1.1.26 tqdm-4.45.0 yolov3-tf2
+Removing intermediate container 4745f47e592a
+ ---> bbb4dfe3a77f
+Step 5/7 : COPY usage.txt /yolov3-tf2
+ ---> fc67d38f717f
+Step 6/7 : COPY gpu-checker.py /gpu-checker.py
+ ---> 3b0d04eb0666
+Step 7/7 : CMD [ "cat", "/yolov3-tf2/usage.txt" ]
+ ---> Running in 08bfaabad066
+Removing intermediate container 08bfaabad066
+ ---> 16ed1443f677
+Successfully built 16ed1443f677
+Successfully tagged marcus2002/yolov3-tf2-training:1
+#+end_example
+
+
+* Test Docker =marcus2002/yolov3-tf2-training= locally
+
+** Usage
+
+#+name: yolov3-tf2-training-usage
+#+BEGIN_SRC sh :eval no-export :results output :var TAG=tag-number
+docker run marcus2002/yolov3-tf2-training:$TAG
+#+END_SRC
+
+#+RESULTS:
+: marcus2002/yolov3-tf2-training - Dockerize yolov3-tf2 from  https://github.com/zzh8829/yolov3-tf2
+
+
+
+** To show python versions dockered
+
+#+name: yolov3-tf2-training-python-etc
+#+BEGIN_SRC sh :eval no-export :results output   :var TAG=tag-number
+docker run  marcus2002/yolov3-tf2-training:$TAG  bash -c 'echo python $(python --version) pip $(pip --version)'
+docker run  marcus2002/yolov3-tf2-training:$TAG  bash -c 'echo $PATH $(which python)'
+#+END_SRC
+
+#+RESULTS: yolov3-tf2-training-python-etc
+: python Python 3.6.9 pip pip 20.0.2 from /usr/local/lib/python3.6/dist-packages/pip (python 3.6)
+: /usr/local/nvidia/bin:/usr/local/cuda/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin /usr/local/bin/python
+
+
+
+** To show tensorflow version dockered
+
+#+name: yolov3-tf2-training-tf
+#+BEGIN_SRC sh :eval no-export :results output  :var TAG=tag-number
+docker run marcus2002/yolov3-tf2-training:$TAG python -c "import tensorflow as tf; import sys; print(sys.version); print( tf.__version__)"
+#+END_SRC
+
+#+RESULTS: yolov3-tf2-training-tf
+: 3.6.9 (default, Nov  7 2019, 10:44:02) 
+: [GCC 8.3.0]
+: 2.2.0-rc2
+
+
+** To enter into container
+
+#+name: yolov3-tf2-training-run-it
+#+BEGIN_SRC sh :eval no-export :results output :var TAG=tag-number
+echo docker run -it --rm   marcus2002/yolov3-tf2-training:$TAG bash
+#+END_SRC
+
+#+RESULTS: yolov3-tf2-training-run-it
+: docker run -it --rm marcus2002/yolov3-tf2-training:1 bash
+
+
+* Run gpu-checker in Docker =marcus2002/yolov3-tf2-training=
+
+** gpu-checker usage
+
+#+name: gpu-checker-usage
+#+BEGIN_SRC sh :eval no-export :results output :noweb yes  :var TAG=tag-number
+docker run  marcus2002/yolov3-tf2-training:$TAG python ../gpu-checker.py || true
+#+END_SRC
+
+#+RESULTS: gpu-checker-usage
+: ../gpu-checker.py  -  tensorflow GPU tester usage
+: ../gpu-checker.py  cpu|gpu [0-9]|device NAME [0-9]|list|test|versions
+
+
+** Run gpu-checker test
+
+#+name: gpu-checker-test
+#+BEGIN_SRC sh :eval no-export :results output :noweb yes  :var TAG=tag-number
+docker run --user $(id -u)  marcus2002/yolov3-tf2-training:$TAG python ../gpu-checker.py test
+#+END_SRC
+
+#+RESULTS: gpu-checker-test
+: tf.test.is_gpu_available()= False
+: tf.config.list_physical_devices('GPU')= []
+: tf.config.list_physical_devices('CPU')= [PhysicalDevice(name='/physical_device:CPU:0', device_type='CPU')]
+: tf.test.is_built_with_cuda()= True
+
+
+** Run gpu-checker on CPU
+
+#+name: gpu-checker-cpu
+#+BEGIN_SRC sh :eval no-export :results output :noweb yes  :var TAG=tag-number
+docker run --user $(id -u)  marcus2002/yolov3-tf2-training:$TAG python ../gpu-checker.py cpu
+#+END_SRC
+
+#+RESULTS: gpu-checker-cpu
+: Using CPU
+: c= tf.Tensor(
+: [[22. 28.]
+:  [49. 64.]], shape=(2, 2), dtype=float32)
+: Device mapping:
+: /job:localhost/replica:0/task:0/device:XLA_CPU:0 -> device: XLA_CPU device
+
+
+** Run gpu-checker on GPU 0
+
+#+name: gpu-checker-gpu 0
+#+BEGIN_SRC sh :eval no-export :results output :noweb yes  :var TAG=tag-number
+docker run --user $(id -u)  marcus2002/yolov3-tf2-training:$TAG python ../gpu-checker.py gpu 1
+#+END_SRC
+
+
+
+
+* Run  =yolov-tf3=  in Docker
+
+** Prepare directory structure under =$STAGE= directory
+
+#+name: yolov3-tf2-directories
+#+BEGIN_SRC sh :eval no-export :results output :var STAGE=stage-dir
+  mkdir -p $STAGE/yolov3-tf2/output
+  mkdir -p $STAGE/yolov3-tf2/checkpoints
+  mkdir -p $STAGE/yolov3-tf2/weights
+  mkdir -p $STAGE/yolov3-tf2/meta
+  mkdir -p $STAGE/yolov3-tf2/data
+#+END_SRC
+
+#+RESULTS: yolov3-tf2-directories
+
+
+** Download darknet weights =yolov3.weights= to =$STAGE/weights/= directory
+
+#+name: yolov3-tf2-weights
+#+BEGIN_SRC sh :eval no-export :results output :var STAGE=stage-dir
+wget https://pjreddie.com/media/files/yolov3.weights -O $STAGE/weights/yolov3.weights
+#+END_SRC
+
+#+RESULTS: yolov3-tf2-weights
+: wget https://pjreddie.com/media/files/yolov3.weights -O /home/jj/stage/yolov3-tf2/weights/yolov3.weights
+
+
+Check that they are there
+#+BEGIN_SRC sh :eval no-export :results output :var STAGE=stage-dir
+ls -ltr ${STAGE}/weights
+#+END_SRC
+
+
+** Inspect docker volume bindings
+
+#+name: yolov3-tf-volumes
+#+BEGIN_SRC sh :eval no-export :results output :var STAGE=stage-directory :var TAG=tag-number
+  docker run \
+       --user $(id -u) \
+       --workdir /yolov3-tf2 \
+       --volume $STAGE/checkpoints:/yolov3-tf2/checkpoints \
+       --volume $STAGE/output:/yolov3-tf2/output \
+       --volume $STAGE/data:/yolov3-tf2/voc.data \
+       marcus2002/yolov3-tf2-training:$TAG \
+       bash -c "echo $(whoami); ls -ltr checkpoints output voc.data"
+#+END_SRC
+
+#+RESULTS: yolov3-tf-volumes
+#+begin_example
+jj
+voc.data:
+total 1315772
+-rw-r--r-- 1 1000 1000 678662716 Apr 17 08:48 voc2012_val.tfrecord
+-rw-r--r-- 1 1000 1000 668674204 Apr 22 05:41 voc2012_train.tfrecord
+
+checkpoints:
+total 2269508
+-rw-rw-r-- 1 1000 1000     24143 Apr  9 09:33 yolov3.tf.index
+-rw-r--r-- 1 1000 1000 415129482 Apr 17 13:36 yolov3_train_1.tf.data-00000-of-00001
+-rw-r--r-- 1 1000 1000     34394 Apr 17 13:36 yolov3_train_1.tf.index
+-rw-r--r-- 1 1000 1000     34394 Apr 17 15:07 yolov3_train_2.tf.index
+-rw-r--r-- 1 1000 1000 415129482 Apr 17 15:07 yolov3_train_2.tf.data-00000-of-00001
+-rw-r--r-- 1 1000 1000 415129482 Apr 17 16:38 yolov3_train_3.tf.data-00000-of-00001
+-rw-r--r-- 1 1000 1000     34394 Apr 17 16:38 yolov3_train_3.tf.index
+-rw-r--r-- 1 1000 1000 415129482 Apr 17 18:08 yolov3_train_4.tf.data-00000-of-00001
+-rw-r--r-- 1 1000 1000     34394 Apr 17 18:08 yolov3_train_4.tf.index
+-rw-r--r-- 1 1000 1000 415129482 Apr 17 18:28 yolov3_train_5.tf.data-00000-of-00001
+-rw-r--r-- 1 1000 1000     34394 Apr 17 18:28 yolov3_train_5.tf.index
+-rw-r--r-- 1 root root 248070167 Apr 23 09:02 yolov3-cnv.tf.data-00000-of-00001
+-rw-r--r-- 1 root root     24143 Apr 23 09:02 yolov3-cnv.tf.index
+-rw-r--r-- 1 root root        83 Apr 23 09:02 checkpoint
+
+output:
+total 976
+-rw-r--r-- 1 root root  74410 Apr 22 05:42 random.jpg
+-rw-rw-r-- 1 1000 1000      6 Apr 23 07:40 hello.txt
+-rw-r--r-- 1 root root 914263 Apr 23 09:10 after-cnv.jpg
+#+end_example
+
+
+
+** Convert =$STAGE/weights/yolov3.weights= to =$STAGE/data/yolov3-cnv.tf=
+
+Cleanup $STAGE/data and show directory =$STAGE/weights= content
+
+#+BEGIN_SRC sh :eval no-export :results output :var STAGE=stage-directory
+rm -f $STAGE/data/*
+ls -ltr $STAGE/weights  $STAGE/data
+#+END_SRC
+
+#+RESULTS:
+: /home/jj/stage/yolov3-tf2/weights:
+: total 242196
+: -rw-rw-r-- 1 jj jj 248007048 huhti  8 15:50 yolov3.weights
+: 
+: /home/jj/stage/yolov3-tf2/data:
+: total 0
+
+
+Create =$STAGE/data/yolov3-cnv.tf=
+
+#+name: yolov3-tf2-convert
+#+BEGIN_SRC sh :eval no-export :results output :var STAGE=stage-directory :var TAG=tag-number
+  docker run \
+       --workdir /yolov3-tf2 \
+       --volume $STAGE/weights:/yolov3-tf2/weights \
+       --volume $STAGE/checkpoints:/yolov3-tf2/checkpoints \
+       --volume $STAGE/output:/yolov3-tf2/output \
+       --volume $STAGE/data:/yolov3-tf2/voc.data \
+       marcus2002/yolov3-tf2-training:$TAG \
+       python convert.py \
+                --weights ./weights/yolov3.weights --output ./voc.data/yolov3-cnv.tf
+#+END_SRC
+
+#+RESULTS: yolov3-tf2-convert
+#+begin_example
+Model: "yolov3"
+__________________________________________________________________________________________________
+Layer (type)                    Output Shape         Param #     Connected to                     
+==================================================================================================
+input (InputLayer)              [(None, None, None,  0                                            
+__________________________________________________________________________________________________
+yolo_darknet (Model)            ((None, None, None,  40620640    input[0][0]                      
+__________________________________________________________________________________________________
+yolo_conv_0 (Model)             (None, None, None, 5 11024384    yolo_darknet[1][2]               
+__________________________________________________________________________________________________
+yolo_conv_1 (Model)             (None, None, None, 2 2957312     yolo_conv_0[1][0]                
+                                                                 yolo_darknet[1][1]               
+__________________________________________________________________________________________________
+yolo_conv_2 (Model)             (None, None, None, 1 741376      yolo_conv_1[1][0]                
+                                                                 yolo_darknet[1][0]               
+__________________________________________________________________________________________________
+yolo_output_0 (Model)           (None, None, None, 3 4984063     yolo_conv_0[1][0]                
+__________________________________________________________________________________________________
+yolo_output_1 (Model)           (None, None, None, 3 1312511     yolo_conv_1[1][0]                
+__________________________________________________________________________________________________
+yolo_output_2 (Model)           (None, None, None, 3 361471      yolo_conv_2[1][0]                
+__________________________________________________________________________________________________
+yolo_boxes_0 (Lambda)           ((None, None, None,  0           yolo_output_0[1][0]              
+__________________________________________________________________________________________________
+yolo_boxes_1 (Lambda)           ((None, None, None,  0           yolo_output_1[1][0]              
+__________________________________________________________________________________________________
+yolo_boxes_2 (Lambda)           ((None, None, None,  0           yolo_output_2[1][0]              
+__________________________________________________________________________________________________
+yolo_nms (Lambda)               ((None, 100, 4), (No 0           yolo_boxes_0[0][0]               
+                                                                 yolo_boxes_0[0][1]               
+                                                                 yolo_boxes_0[0][2]               
+                                                                 yolo_boxes_1[0][0]               
+                                                                 yolo_boxes_1[0][1]               
+                                                                 yolo_boxes_1[0][2]               
+                                                                 yolo_boxes_2[0][0]               
+                                                                 yolo_boxes_2[0][1]               
+                                                                 yolo_boxes_2[0][2]               
+==================================================================================================
+Total params: 62,001,757
+Trainable params: 61,949,149
+Non-trainable params: 52,608
+__________________________________________________________________________________________________
+#+end_example
+
+Show result directory =$STAGE/data= (which was cleaned just before conversion)
+
+#+BEGIN_SRC sh :eval no-export :results output :var STAGE=stage-directory
+ls -ltr $STAGE/weights $STAGE/data
+#+END_SRC
+
+#+RESULTS:
+: /home/jj/stage/yolov3-tf2/weights:
+: total 242196
+: -rw-rw-r-- 1 jj jj 248007048 huhti  8 15:50 yolov3.weights
+: 
+: /home/jj/stage/yolov3-tf2/data:
+: total 242292
+: -rw-r--r-- 1 root root 248070167 huhti 24 09:27 yolov3-cnv.tf.data-00000-of-00001
+: -rw-r--r-- 1 root root     24143 huhti 24 09:27 yolov3-cnv.tf.index
+: -rw-r--r-- 1 root root        83 huhti 24 09:27 checkpoint
+
+
+** Run image detection using converted weights in =$STAGE/data/yolov3-cnv.tf=
+
+Demo detect using weight =yolov3-cnv.tf=
+
+Cleanup output directory
+
+#+BEGIN_SRC sh :eval no-export :results output :var STAGE=stage-directory
+rm -f $STAGE/output/*
+ls -ltr $STAGE/output
+#+END_SRC
+
+#+RESULTS:
+: total 0
+
+Exmples in =yolov3-tf2/data= directory
+-  --image ./data/meme.jpg \
+-  --image ./data/street.jpg \
+
+
+#+name: yolov3-tf2-detect
+#+BEGIN_SRC sh :eval no-export :results output :var STAGE=stage-directory :var TAG=tag-number
+  docker run \
+       --user $(id -u) \
+       --workdir /yolov3-tf2 \
+       --volume $STAGE/data:/yolov3-tf2/voc.data \
+       --volume $STAGE/output:/yolov3-tf2/output \
+       marcus2002/yolov3-tf2-training:$TAG \
+       python detect.py \
+                     --weights ./voc.data/yolov3-cnv.tf \
+                     --image ./data/street.jpg \
+                     --output ./output/after-cnv.jpg
+#+END_SRC
+
+#+RESULTS: yolov3-tf2-detect
+
+
+[[file:~/stage/yolov3-tf2/output/after-cnv.jpg]]
+
+
+** Download  =VOCdevkit= and extract it to =$STAGE/voc2012_raw=
+
+Taken from =yolov3-tf2/docs/training_voc.md=
+
+#+name: yolov3-tf2-voc
+#+BEGIN_SRC sh :eval no
+# Not checked
+wget http://host.robots.ox.ac.uk/pascal/VOC/voc2012/VOCtrainval_11-May-2012.tar -O $STAGE/voc2012_raw.tar
+tar -xf $STAGE/voc2012_raw.tar -C $STAGE
+ls $STAGE/data/voc2012_raw/VOCdevkit/VOC2012 # Explore the dataset
+#+END_SRC
+
+Expect to have VOCdevkit in =$STAGE/voc2012_raw=
+#+name: yolov3-tf2-voc-show
+#+BEGIN_SRC sh :eval no-export :results output :var STAGE=stage-directory
+ls -ltr $STAGE/voc2012_raw 
+#+END_SRC
+
+#+RESULTS: yolov3-tf2-voc-show
+: total 4
+: drwxrwxr-x 3 jj jj 4096 touko 11  2012 VOCdevkit
+
+
+** Transform =VOCdevkit= training and validation data
+
+Cleanup (particularly ensure that =$STAGE/data/*.tfrecord= do not exist befo conversion)
+
+#+BEGIN_SRC sh :eval no-export :results output :var STAGE=stage-directory
+rm -f $STAGE/data/*.tfrecord
+ls $STAGE/data
+#+END_SRC
+
+#+RESULTS:
+: checkpoint
+: yolov3-cnv.tf.data-00000-of-00001
+: yolov3-cnv.tf.index
+
+
+Show input 
+#+BEGIN_SRC sh :eval no-export :results output :var STAGE=stage-directory :var TAG=tag-number
+  docker run \
+       --user $(id -u) \
+       --workdir /yolov3-tf2 \
+       --volume $STAGE/voc2012_raw:/yolov3-tf2/voc \
+       --volume $STAGE/data:/yolov3-tf2/voc.data \
+       marcus2002/yolov3-tf2-training:$TAG \
+       ls -ltr './voc/VOCdevkit/VOC2012' ./data ./voc.data
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+./voc/VOCdevkit/VOC2012:
+total 1332
+drwxrwxr-x 6 1000 1000   4096 May 11  2012 ImageSets
+drwxrwxr-x 2 1000 1000 102400 May 11  2012 SegmentationObject
+drwxrwxr-x 2 1000 1000 102400 May 11  2012 SegmentationClass
+drwxrwxr-x 2 1000 1000 552960 May 11  2012 JPEGImages
+drwxrwxr-x 2 1000 1000 593920 Apr  9 09:00 Annotations
+
+./data:
+total 2420
+-rw-r--r-- 1 root root    135 Apr 24 05:06 voc2012.names
+-rw-r--r-- 1 root root 285600 Apr 24 05:06 street_out.jpg
+-rw-r--r-- 1 root root 465046 Apr 24 05:06 street.jpg
+-rw-r--r-- 1 root root 625129 Apr 24 05:06 meme_out.jpg
+-rw-r--r-- 1 root root   8875 Apr 24 05:06 meme2.jpeg
+-rw-r--r-- 1 root root 401910 Apr 24 05:06 meme.jpg
+-rw-r--r-- 1 root root 664559 Apr 24 05:06 girl.png
+-rw-r--r-- 1 root root    625 Apr 24 05:06 coco.names
+-rw-r--r-- 1 root root     75 Apr 24 05:06 checkpoint
+
+./voc.data:
+total 242292
+-rw-r--r-- 1 root root 248070167 Apr 24 06:27 yolov3-cnv.tf.data-00000-of-00001
+-rw-r--r-- 1 root root     24143 Apr 24 06:27 yolov3-cnv.tf.index
+-rw-r--r-- 1 root root        83 Apr 24 06:27 checkpoint
+#+end_example
+
+
+*** Convert training data in =$STAGE/voc2012_raw=  to =$STAGE/data/voc2012_train.tfrecord=
+
+ #+name: yolov3-tf2-tr1
+ #+BEGIN_SRC sh :eval no-export :results output :var STAGE=stage-directory :var TAG=tag-number
+   docker run \
+        --user $(id -u) \
+        --workdir /yolov3-tf2 \
+        --volume $STAGE/voc2012_raw:/yolov3-tf2/voc \
+        --volume $STAGE/data:/yolov3-tf2/voc.data \
+        marcus2002/yolov3-tf2-training:$TAG \
+        python tools/voc2012.py \
+           --data_dir './voc/VOCdevkit/VOC2012' \
+           --split train \
+           --output_file ./voc.data/voc2012_train.tfrecord
+ #+END_SRC
+
+ #+RESULTS: yolov3-tf2-tr1
+
+
+
+*** Convert validation data in =$STAGE/voc2012_raw=  to =$STAGE/data/voc2012_val.tfrecord=
+
+
+ #+name: yolov3-tf2-tr2
+ #+BEGIN_SRC sh :eval no-export :results output :var STAGE=stage-directory :var TAG=tag-number
+   docker run \
+        --user $(id -u) \
+        --workdir /yolov3-tf2 \
+        --volume $STAGE/voc2012_raw:/yolov3-tf2/voc \
+        --volume $STAGE/data:/yolov3-tf2/voc.data \
+        marcus2002/yolov3-tf2-training:$TAG \
+        python tools/voc2012.py \
+           --data_dir './voc/VOCdevkit/VOC2012' \
+           --split val \
+           --output_file ./voc.data/voc2012_val.tfrecord
+ #+END_SRC
+
+ #+RESULTS: yolov3-tf2-tr2
+
+
+*** Show docker =voc.data= aka =$STAGE/data=
+
+Expect to see =voc2012_train.tfrecord= and =voc2012_val.tfrecord=
+
+ #+BEGIN_SRC sh :eval no-export :results output :var STAGE=stage-directory
+ ls -ltr $STAGE/data
+ #+END_SRC
+
+ #+RESULTS:
+ : total 1558064
+ : -rw-r--r-- 1 root root 248070167 huhti 24 09:27 yolov3-cnv.tf.data-00000-of-00001
+ : -rw-r--r-- 1 root root     24143 huhti 24 09:27 yolov3-cnv.tf.index
+ : -rw-r--r-- 1 root root        83 huhti 24 09:27 checkpoint
+ : -rw-r--r-- 1 jj   root 668674204 huhti 24 09:47 voc2012_train.tfrecord
+ : -rw-r--r-- 1 jj   root 678662716 huhti 24 09:47 voc2012_val.tfrecord
+
+
+** Ensure that tranlation was successful
+
+#+name: yolov3-tf2-random
+#+BEGIN_SRC sh :eval no-export :results output :var STAGE=stage-directory :var TAG=tag-number
+  docker run \
+       --workdir /yolov3-tf2 \
+       --volume $STAGE/data:/yolov3-tf2/voc.data \
+       --volume $STAGE/output:/yolov3-tf2/output \
+       marcus2002/yolov3-tf2-training:$TAG \
+       python tools/visualize_dataset.py \
+                             --dataset=./voc.data/voc2012_train.tfrecord \
+                             --classes=./data/voc2012.names \
+                             --output ./output/random.jpg
+#+END_SRC
+
+#+RESULTS: yolov3-tf2-random
+
+Check it [[file:~/stage/yolov3-tf2/output/random.jpg]]
+
+
+#+name: yolov3-tf2-random2
+#+BEGIN_SRC sh :eval no-export :results output :var STAGE=stage-directory :var TAG=tag-number
+  docker run \
+       --workdir /yolov3-tf2 \
+       --volume $STAGE/data:/yolov3-tf2/voc.data \
+       --volume $STAGE/output:/yolov3-tf2/output \
+       marcus2002/yolov3-tf2-training:$TAG \
+       python tools/visualize_dataset.py \
+                             --dataset=./voc.data/voc2012_val.tfrecord \
+                             --classes=./data/voc2012.names \
+                             --output ./output/random2.jpg
+#+END_SRC
+
+#+RESULTS: yolov3-tf2-random2
+
+Check it [[file:~/stage/yolov3-tf2/output/random2.jpg]]
+
+
+** Run training
+
+
+Remove training result =$STAGE/checkpoints/yolov3_train= 
+
+#+BEGIN_SRC sh :eval no-export :results output :var STAGE=stage-directory
+rm -f $STAGE/checkpoints/yolov3_train*
+ls -ltr $STAGE/checkpoints
+#+END_SRC
+
+#+RESULTS:
+: total 242316
+: -rw-rw-r-- 1 jj   jj       24143 huhti  9 12:33 yolov3.tf.index
+: -rw-r--r-- 1 root root 248070167 huhti 23 12:02 yolov3-cnv.tf.data-00000-of-00001
+: -rw-r--r-- 1 root root     24143 huhti 23 12:02 yolov3-cnv.tf.index
+: -rw-r--r-- 1 root root        83 huhti 23 12:02 checkpoint
+
+Show input data
+
+#+BEGIN_SRC sh :eval no-export :results output :var STAGE=stage-directory :var TAG=tag-number
+  docker run \
+       --user $(id -u) \
+       --workdir /yolov3-tf2 \
+       --volume $STAGE/data:/yolov3-tf2/voc.data \
+       --volume $STAGE/checkpoints:/yolov3-tf2/checkpoints \
+       --volume $STAGE/output:/yolov3-tf2/output \
+       marcus2002/yolov3-tf2-training:$TAG \
+       ls  -ltr ./voc.data ./checkpoints ./data
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+./data:
+total 2420
+-rw-r--r-- 1 root root    135 Apr 24 05:06 voc2012.names
+-rw-r--r-- 1 root root 285600 Apr 24 05:06 street_out.jpg
+-rw-r--r-- 1 root root 465046 Apr 24 05:06 street.jpg
+-rw-r--r-- 1 root root 625129 Apr 24 05:06 meme_out.jpg
+-rw-r--r-- 1 root root   8875 Apr 24 05:06 meme2.jpeg
+-rw-r--r-- 1 root root 401910 Apr 24 05:06 meme.jpg
+-rw-r--r-- 1 root root 664559 Apr 24 05:06 girl.png
+-rw-r--r-- 1 root root    625 Apr 24 05:06 coco.names
+-rw-r--r-- 1 root root     75 Apr 24 05:06 checkpoint
+
+./voc.data:
+total 1558064
+-rw-r--r-- 1 root root 248070167 Apr 24 06:27 yolov3-cnv.tf.data-00000-of-00001
+-rw-r--r-- 1 root root     24143 Apr 24 06:27 yolov3-cnv.tf.index
+-rw-r--r-- 1 root root        83 Apr 24 06:27 checkpoint
+-rw-r--r-- 1 1000 root 668674204 Apr 24 06:47 voc2012_train.tfrecord
+-rw-r--r-- 1 1000 root 678662716 Apr 24 06:47 voc2012_val.tfrecord
+
+./checkpoints:
+total 242316
+-rw-rw-r-- 1 1000 1000     24143 Apr  9 09:33 yolov3.tf.index
+-rw-r--r-- 1 root root 248070167 Apr 23 09:02 yolov3-cnv.tf.data-00000-of-00001
+-rw-r--r-- 1 root root     24143 Apr 23 09:02 yolov3-cnv.tf.index
+-rw-r--r-- 1 root root        83 Apr 23 09:02 checkpoint
+#+end_example
+
+Train dataset =$STAGE/data/voc2012_train.tfrecord= to detect =20=
+names in =voc2012.names= staring with initial weights
+=$STAGE/data/yolov3-cnv.tf= from =yolov3-tf2= using validation dataset
+=$STAGE/data/voc2012_val.tfrecord=
+
+*Notice*: Just echo the command to make it easier to paste terminal
+
+=+name: yolov3-tf2-1
+#+BEGIN_SRC sh :eval no-export :results output :var STAGE=stage-directory :var TAG=tag-number
+  echo docker run \
+       --user $(id -u) \
+       --workdir /yolov3-tf2 \
+       --volume $STAGE/data:/yolov3-tf2/voc.data \
+       --volume $STAGE/checkpoints:/yolov3-tf2/checkpoints \
+       --volume $STAGE/output:/yolov3-tf2/output \
+       marcus2002/yolov3-tf2-training:$TAG \
+       python train.py \
+	--dataset ./voc.data/voc2012_train.tfrecord \
+	--val_dataset ./voc.data/voc2012_val.tfrecord \
+	--weights ./voc.data/yolov3-cnv.tf \
+	--classes ./data/voc2012.names \
+	--num_classes 20 \
+	--mode fit \
+        --transfer darknet \
+	--batch_size 16 \
+	--epochs 10 \
+	--weights_num_classes 80 
+#+END_SRC
+
+#+RESULTS:
+: docker run --user 1000 --workdir /yolov3-tf2 --volume /home/jj/stage/yolov3-tf2/data:/yolov3-tf2/voc.data --volume /home/jj/stage/yolov3-tf2/checkpoints:/yolov3-tf2/checkpoints --volume /home/jj/stage/yolov3-tf2/output:/yolov3-tf2/output marcus2002/yolov3-tf2-training:1 python train.py --dataset ./voc.data/voc2012_train.tfrecord --val_dataset ./voc.data/voc2012_val.tfrecord --weights ./voc.data/yolov3-cnv.tf --classes ./data/voc2012.names --num_classes 20 --mode fit --transfer darknet --batch_size 16 --epochs 10 --weights_num_classes 80
+
+
+#+BEGIN_SRC sh :eval no-export :results output :var STAGE=stage-dir
+ls -ltr $STAGE/checkpoints
+#+END_SRC
+
+#+RESULTS:
+: total 890012
+: -rw-rw-r-- 1 jj   jj   248070167 huhti  9 12:33 yolov3.tf.data-00000-of-00001
+: -rw-rw-r-- 1 jj   jj       24143 huhti  9 12:33 yolov3.tf.index
+: -rw-r--r-- 1 root root 248070167 huhti 17 10:40 yolov3-cnv.tf.data-00000-of-00001
+: -rw-r--r-- 1 root root     24143 huhti 17 10:40 yolov3-cnv.tf.index
+: -rw-r--r-- 1 root root 415129482 huhti 17 12:27 yolov3_train_1.tf.data-00000-of-00001
+: -rw-r--r-- 1 root root     34394 huhti 17 12:27 yolov3_train_1.tf.index
+: -rw-r--r-- 1 root root        91 huhti 17 12:27 checkpoint
+
+
+
+* Push :var TAG=tag-number
+#+BEGIN_SRC sh :eval no-export :results output :var TAG=tag-number
+docker push marcus2002/yolov3-tf2-training:$TAG 
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+The push refers to repository [docker.io/marcus2002/yolov3-tf2-training]
+0982e00cca5c: Preparing
+093efa899df5: Preparing
+0f160ad1009c: Preparing
+c82ceba452f3: Preparing
+236bb3c9aaa0: Preparing
+d604c82216a7: Preparing
+68be8f69bcf2: Preparing
+bebd4c38336d: Preparing
+7ac039a56240: Preparing
+0a5a3d7338a2: Preparing
+ce55697d112c: Preparing
+d604c82216a7: Waiting
+e959fe2ae5c7: Preparing
+34f180d50750: Preparing
+04ae9003ee0f: Preparing
+68be8f69bcf2: Waiting
+808fd332a58a: Preparing
+b16af11cbf29: Preparing
+bebd4c38336d: Waiting
+37b9a4b22186: Preparing
+e0b3afb09dc3: Preparing
+0a5a3d7338a2: Waiting
+7ac039a56240: Waiting
+6c01b5a53aac: Preparing
+ce55697d112c: Waiting
+2c6ac8e5063e: Preparing
+cc967c529ced: Preparing
+e959fe2ae5c7: Waiting
+808fd332a58a: Waiting
+e0b3afb09dc3: Waiting
+34f180d50750: Waiting
+37b9a4b22186: Waiting
+6c01b5a53aac: Waiting
+b16af11cbf29: Waiting
+04ae9003ee0f: Waiting
+cc967c529ced: Waiting
+2c6ac8e5063e: Waiting
+236bb3c9aaa0: Layer already exists
+093efa899df5: Layer already exists
+c82ceba452f3: Layer already exists
+0f160ad1009c: Layer already exists
+bebd4c38336d: Layer already exists
+68be8f69bcf2: Layer already exists
+d604c82216a7: Layer already exists
+7ac039a56240: Layer already exists
+34f180d50750: Layer already exists
+ce55697d112c: Layer already exists
+0a5a3d7338a2: Layer already exists
+e959fe2ae5c7: Layer already exists
+04ae9003ee0f: Layer already exists
+37b9a4b22186: Layer already exists
+808fd332a58a: Layer already exists
+b16af11cbf29: Layer already exists
+e0b3afb09dc3: Layer already exists
+2c6ac8e5063e: Layer already exists
+cc967c529ced: Layer already exists
+6c01b5a53aac: Layer already exists
+0982e00cca5c: Pushed
+6: digest: sha256:c6952753b9a6d0798c9ef422636a88eec5df73930e9b3a65fe0fd2266e7e50c4 size: 4725
+#+end_example
+
+
+
+* Fin                                                              :noexport:
+
+** Emacs variables
+
+#+RESULTS:
+
+# Local Variables:
+# org-confirm-babel-evaluate: nil
+# conda-project-env-name: tsr
+# End:
+
+
