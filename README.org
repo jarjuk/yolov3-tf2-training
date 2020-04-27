@@ -743,6 +743,7 @@ extract
 : -rw-r--r-- 1 ec2-user ec2-user 668674204 24.4. 06:47 voc2012_train.tfrecord
 : -rw-r--r-- 1 ec2-user ec2-user 678662716 24.4. 06:47 voc2012_val.tfrecord
 
+
 ** gpu-checker usage
 
 #+BEGIN_SRC sh :eval no-export :results output :noweb yes  :var TAG=docker-tag-number
@@ -752,6 +753,7 @@ extract
 #+RESULTS:
 : ../gpu-checker.py  -  tensorflow GPU tester usage
 : ../gpu-checker.py  cpu|gpu [0-9]|device NAME [0-9]|list|test|versions
+
 
 ** gpu-checker test
 
@@ -858,6 +860,7 @@ Epoch 00009: saving model to checkpoints/yolov3_train_9.tf
 358/358 [==============================] - 328s 917ms/step - loss: 16.1118 - yolo_output_0_loss: 1.3019 - yolo_output_1_loss: 1.5299 - yolo_output_2_loss: 2.1663 - val_loss: 24.4573 - val_yolo_output_0_loss: 5.6939 - val_yolo_output_1_loss: 5.0424 - val_yolo_output_2_loss: 2.6020 - lr: 0.0010
 Epoch 00009: early stopping
 #+end_example
+
 
 ** Detect after training session 1
 

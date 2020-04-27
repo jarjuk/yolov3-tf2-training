@@ -27,10 +27,6 @@ export STAGE=<<stage-directory()>>
 #+RESULTS: yolov3-tf2-local-stage
 
 
-
-
-
-
 * Docker =marcus2002/yolov3-tf2-training=
 
 ** Create directory for =marcus2002/yolov3-tf2-training=
@@ -50,7 +46,7 @@ marcus2002/yolov3-tf2-training - Dockerize yolov3-tf2 from  https://github.com/z
 Configuration
 ====================
 
-To configure version (docker tag):
+To configure version  (docker tag) for =marcus2002/yolov3-tf2-training=:
 
     <<yolov3-tf2-training-tag>>
 
@@ -59,15 +55,15 @@ To configure stage directory (here example under $HOME-directory)
     <<yolov3-tf2-local-stage>>
 
 
-Check installation
+Smoke tests
 ====================
 
-To get usage:
+Show usage (=this text)
 
      <<yolov3-tf2-training-usage>>
 
 
-To show python versions dockered:
+To show version of dockered python:
 
     <<yolov3-tf2-training-python-etc>>
 
@@ -83,7 +79,7 @@ To enter in to the container
 gpu-checker.py
 ====================
 
-To get gpu-checker usage:
+To get gpu-checker.py usage:
   
     <<gpu-checker-usage>>
 
@@ -97,10 +93,10 @@ Run gpu-checker on CPU
     <<gpu-checker-cpu>>
 
 
-Run yolov3-tf2 in docker
-====================
+Image detection using darknet weights
+========================================
 
-Prepare directory structure under =$STAGE= directory
+First prepare directory structure under =$STAGE= directory
 
     <<yolov3-tf2-directories>>
 
@@ -109,27 +105,28 @@ Download darknet weights =yolov3.weights= to =$STAGE/weights/= directory
 
     <<yolov3-tf2-weights>>
 
-Inspect docker volume bindings:
 
-    <<yolov3-tf-volumes>>
-
-Convert =$STAGE/weights/yolov3.weights= to =$STAGE/data/yolov3-cnv.tf=
+Convert darkent weights in =$STAGE/weights/yolov3.weights= to =$STAGE/data/yolov3-cnv.tf=
 
     <<yolov3-tf2-convert>>
 
-Run image detection using converted weights in =$STAGE/data/yolov3-cnv.tf=
+Run image detection using converted darknet weights in =$STAGE/data/yolov3-cnv.tf=
 
     <<yolov3-tf2-detect>>
+
+
+Train yolov3-tf3 to detect =VOCdevkit= 
+========================================
 
 Download  =VOCdevkit= and extract it to =$STAGE/voc2012_raw=
 
     <<yolov3-tf2-voc>>
 
-Convert training data in =$STAGE/voc2012_raw=  to =$STAGE/data/voc2012_train.tfrecord=
+Convert training data images in =$STAGE/voc2012_raw=  o =$STAGE/data/voc2012_train.tfrecord=
 
     <<yolov3-tf2-tr1>>
 
-Convert validation data in =$STAGE/voc2012_raw=  to =$STAGE/data/voc2012_val.tfrecord=
+Convert validation data images in =$STAGE/voc2012_raw=  to =$STAGE/data/voc2012_val.tfrecord=
 
    <<yolov3-tf2-tr2>>
 
@@ -141,12 +138,30 @@ and
 
    <<yolov3-tf2-random2>>
 
-Train dataset =$STAGE/data/voc2012_train.tfrecord= to detect =20=
-names in =voc2012.names= staring with initial weights
-=$STAGE/data/yolov3-cnv.tf= from =yolov3-tf2= using validation dataset
-=$STAGE/data/voc2012_val.tfrecord=
+Inspect $STAGE directory trouhgh docker volume bindings:
+
+    <<yolov3-tf-volumes>>
+
+Train dataset =$STAGE/data/voc2012_train.tfrecord= using validation dataset
+=$STAGE/data/voc2012_val.tfrecord= to detect =20=
+class names in =voc2012.names= using initial weights
+=$STAGE/data/yolov3-cnv.tf= (with =80= classes).
  
    <<yolov3-tf2-1>>
+
+Launch tensort board to monitor training
+
+   <<yolov3-tf2-board>>
+
+
+Optionally, open ssh connection forwarding tensorboard port to localhost:6067
+
+    <<yolov3-tf2-board-ssh>>
+  
+and launch browser 
+
+     http://localhost:6067
+
 
 #+END_SRC
 
@@ -271,16 +286,17 @@ names in =voc2012.names= staring with initial weights
 
 ** Build =marcus2002/yolov3-tf2-training
 
-Showe content of directory to dockerize
+Show content of directory =yolov3-tf2-training= to dockerize
 
 #+BEGIN_SRC sh :eval no-export :results output
 ls -ltr yolov3-tf2-training
 #+END_SRC
 
 #+RESULTS:
-: total 8
+: total 16
 : -rw-rw-r-- 1 jj jj 2747 huhti 24 07:58 gpu-checker.py
-: -rw-rw-r-- 1 jj jj   98 huhti 24 08:02 usage.txt
+: -rw-rw-r-- 1 jj jj  543 huhti 24 08:05 Dockerfile
+: -rw-rw-r-- 1 jj jj 7738 huhti 27 08:34 usage.txt
 
 #+END_SRC
 
@@ -292,41 +308,27 @@ docker build -t marcus2002/yolov3-tf2-training:$TAG yolov3-tf2-training
 
 #+RESULTS:
 #+begin_example
-Sending build context to Docker daemon  8.192kB
+Sending build context to Docker daemon  15.87kB
 Step 1/7 : FROM tensorflow/tensorflow:2.2.0rc2-gpu-py3
  ---> 35ae3aacb6ff
 Step 2/7 : RUN apt-get update &&    apt-get install -y           curl         git         libsm6 libxext6 libxrender-dev
  ---> Using cache
  ---> ca76f453a356
 Step 3/7 : RUN git clone https://github.com/zzh8829/yolov3-tf2
- ---> Running in 1db9bcd8ffc0
-[91mCloning into 'yolov3-tf2'...
-[0mRemoving intermediate container 1db9bcd8ffc0
+ ---> Using cache
  ---> d48e530f9863
 Step 4/7 : RUN sed -e '/tensorflow/d' yolov3-tf2/requirements-gpu.txt > yolov3-tf2/req.txt &&       cd yolov3-tf2 && pip install -r req.txt
- ---> Running in 4745f47e592a
-Obtaining file:///yolov3-tf2 (from -r req.txt (line 5))
-Collecting opencv-python==4.1.1.26
-  Downloading opencv_python-4.1.1.26-cp36-cp36m-manylinux1_x86_64.whl (28.7 MB)
-Collecting lxml
-  Downloading lxml-4.5.0-cp36-cp36m-manylinux1_x86_64.whl (5.8 MB)
-Collecting tqdm
-  Downloading tqdm-4.45.0-py2.py3-none-any.whl (60 kB)
-Requirement already satisfied: numpy>=1.11.3 in /usr/local/lib/python3.6/dist-packages (from opencv-python==4.1.1.26->-r req.txt (line 1)) (1.18.2)
-Installing collected packages: opencv-python, lxml, tqdm, yolov3-tf2
-  Running setup.py develop for yolov3-tf2
-Successfully installed lxml-4.5.0 opencv-python-4.1.1.26 tqdm-4.45.0 yolov3-tf2
-Removing intermediate container 4745f47e592a
+ ---> Using cache
  ---> bbb4dfe3a77f
 Step 5/7 : COPY usage.txt /yolov3-tf2
- ---> fc67d38f717f
+ ---> 9590095dd5ee
 Step 6/7 : COPY gpu-checker.py /gpu-checker.py
- ---> 3b0d04eb0666
+ ---> 4d205ba34c4d
 Step 7/7 : CMD [ "cat", "/yolov3-tf2/usage.txt" ]
- ---> Running in 08bfaabad066
-Removing intermediate container 08bfaabad066
- ---> 16ed1443f677
-Successfully built 16ed1443f677
+ ---> Running in 9b55ff99ed43
+Removing intermediate container 9b55ff99ed43
+ ---> 6177720aeb6f
+Successfully built 6177720aeb6f
 Successfully tagged marcus2002/yolov3-tf2-training:1
 #+end_example
 
@@ -339,6 +341,238 @@ Successfully tagged marcus2002/yolov3-tf2-training:1
 #+BEGIN_SRC sh :eval no-export :results output :var TAG=tag-number
 docker run marcus2002/yolov3-tf2-training:$TAG
 #+END_SRC
+
+#+RESULTS: yolov3-tf2-training-usage
+#+begin_example
+marcus2002/yolov3-tf2-training - Dockerize yolov3-tf2 from  https://github.com/zzh8829/yolov3-tf2
+
+Configuration
+====================
+
+To configure version  (docker tag) for =marcus2002/yolov3-tf2-training=:
+
+    export TAG=1
+
+To configure stage directory (here example under $HOME-directory)
+
+    export STAGE=/home/jj/stage/yolov3-tf2
+
+
+Smoke tests
+====================
+
+Show usage (=this text)
+
+     docker run marcus2002/yolov3-tf2-training:$TAG
+
+
+To show version of dockered python:
+
+    docker run  marcus2002/yolov3-tf2-training:$TAG  bash -c 'echo python $(python --version) pip $(pip --version)'
+    docker run  marcus2002/yolov3-tf2-training:$TAG  bash -c 'echo $PATH $(which python)'
+
+To show tensorflow version dockered:
+
+    docker run marcus2002/yolov3-tf2-training:$TAG python -c "import tensorflow as tf; import sys; print(sys.version); print( tf.__version__)"
+
+
+To enter in to the container
+
+    docker run -it --rm marcus2002/yolov3-tf2-training:1 bash
+    
+
+gpu-checker.py
+====================
+
+To get gpu-checker.py usage:
+  
+    docker run  marcus2002/yolov3-tf2-training:$TAG python ../gpu-checker.py || true
+
+To test gpu support
+
+    docker run --user $(id -u)  marcus2002/yolov3-tf2-training:$TAG python ../gpu-checker.py test
+
+
+Run gpu-checker on CPU
+
+    docker run --user $(id -u)  marcus2002/yolov3-tf2-training:$TAG python ../gpu-checker.py cpu
+
+
+Image detection using darknet weights
+========================================
+
+First prepare directory structure under =$STAGE= directory
+
+    mkdir -p $STAGE/yolov3-tf2/output
+    mkdir -p $STAGE/yolov3-tf2/checkpoints
+    mkdir -p $STAGE/yolov3-tf2/weights
+    mkdir -p $STAGE/yolov3-tf2/meta
+    mkdir -p $STAGE/yolov3-tf2/data
+    mkdir -p $STAGE/yolov3-tf2/logs
+
+
+Download darknet weights =yolov3.weights= to =$STAGE/weights/= directory
+
+    wget https://pjreddie.com/media/files/yolov3.weights -O $STAGE/weights/yolov3.weights
+
+
+Convert darkent weights in =$STAGE/weights/yolov3.weights= to =$STAGE/data/yolov3-cnv.tf=
+
+    docker run \
+         --user $(id -u) \
+         --workdir /yolov3-tf2 \
+         --volume $STAGE/weights:/yolov3-tf2/weights \
+         --volume $STAGE/checkpoints:/yolov3-tf2/checkpoints \
+         --volume $STAGE/output:/yolov3-tf2/output \
+         --volume $STAGE/data:/yolov3-tf2/voc.data \
+         marcus2002/yolov3-tf2-training:$TAG \
+         python convert.py \
+                  --weights ./weights/yolov3.weights --output ./voc.data/yolov3-cnv.tf
+
+Run image detection using converted darknet weights in =$STAGE/data/yolov3-cnv.tf=
+
+    docker run \
+         --user $(id -u) \
+         --workdir /yolov3-tf2 \
+         --volume $STAGE/data:/yolov3-tf2/voc.data \
+         --volume $STAGE/output:/yolov3-tf2/output \
+         marcus2002/yolov3-tf2-training:$TAG \
+         python detect.py \
+                       --weights ./voc.data/yolov3-cnv.tf \
+                       --image ./data/street.jpg \
+                       --output ./output/after-cnv.jpg
+
+
+Train yolov3-tf3 to detect =VOCdevkit= 
+========================================
+
+Download  =VOCdevkit= and extract it to =$STAGE/voc2012_raw=
+
+    # Not checked
+    wget http://host.robots.ox.ac.uk/pascal/VOC/voc2012/VOCtrainval_11-May-2012.tar -O $STAGE/voc2012_raw.tar
+    tar -xf $STAGE/voc2012_raw.tar -C $STAGE
+    ls $STAGE/data/voc2012_raw/VOCdevkit/VOC2012 # Explore the dataset
+
+Convert training data images in =$STAGE/voc2012_raw=  o =$STAGE/data/voc2012_train.tfrecord=
+
+    docker run \
+         --user $(id -u) \
+         --workdir /yolov3-tf2 \
+         --volume $STAGE/voc2012_raw:/yolov3-tf2/voc \
+         --volume $STAGE/data:/yolov3-tf2/voc.data \
+         marcus2002/yolov3-tf2-training:$TAG \
+         python tools/voc2012.py \
+            --data_dir './voc/VOCdevkit/VOC2012' \
+            --split train \
+            --output_file ./voc.data/voc2012_train.tfrecord
+
+Convert validation data images in =$STAGE/voc2012_raw=  to =$STAGE/data/voc2012_val.tfrecord=
+
+   docker run \
+        --user $(id -u) \
+        --workdir /yolov3-tf2 \
+        --volume $STAGE/voc2012_raw:/yolov3-tf2/voc \
+        --volume $STAGE/data:/yolov3-tf2/voc.data \
+        marcus2002/yolov3-tf2-training:$TAG \
+        python tools/voc2012.py \
+           --data_dir './voc/VOCdevkit/VOC2012' \
+           --split val \
+           --output_file ./voc.data/voc2012_val.tfrecord
+
+Ensure that tranlation was successful
+
+   docker run \
+        --workdir /yolov3-tf2 \
+        --volume $STAGE/data:/yolov3-tf2/voc.data \
+        --volume $STAGE/output:/yolov3-tf2/output \
+        marcus2002/yolov3-tf2-training:$TAG \
+        python tools/visualize_dataset.py \
+                              --dataset=./voc.data/voc2012_train.tfrecord \
+                              --classes=./data/voc2012.names \
+                              --output ./output/random.jpg
+
+and 
+
+   docker run \
+        --workdir /yolov3-tf2 \
+        --volume $STAGE/data:/yolov3-tf2/voc.data \
+        --volume $STAGE/output:/yolov3-tf2/output \
+        marcus2002/yolov3-tf2-training:$TAG \
+        python tools/visualize_dataset.py \
+                              --dataset=./voc.data/voc2012_val.tfrecord \
+                              --classes=./data/voc2012.names \
+                              --output ./output/random2.jpg
+
+Inspect $STAGE directory trouhgh docker volume bindings:
+
+    docker run \
+         --user $(id -u) \
+         --workdir /yolov3-tf2 \
+         --volume $STAGE/checkpoints:/yolov3-tf2/checkpoints \
+         --volume $STAGE/output:/yolov3-tf2/output \
+         --volume $STAGE/data:/yolov3-tf2/voc.data \
+         marcus2002/yolov3-tf2-training:$TAG \
+         bash -c "echo $(whoami); ls -ltr checkpoints output voc.data"
+
+Train dataset =$STAGE/data/voc2012_train.tfrecord= using validation dataset
+=$STAGE/data/voc2012_val.tfrecord= to detect =20=
+class names in =voc2012.names= using initial weights
+=$STAGE/data/yolov3-cnv.tf= (with =80= classes).
+ 
+   echo docker run \
+        --user $(id -u) \
+        --workdir /yolov3-tf2 \
+        --volume $STAGE/data:/yolov3-tf2/voc.data \
+        --volume $STAGE/checkpoints:/yolov3-tf2/checkpoints \
+        --volume $STAGE/output:/yolov3-tf2/output \
+        --volume $STAGE/logs:/yolov3-tf2/logs \
+        marcus2002/yolov3-tf2-training:$TAG \
+        python train.py \
+         --dataset ./voc.data/voc2012_train.tfrecord \
+         --val_dataset ./voc.data/voc2012_val.tfrecord \
+         --weights ./voc.data/yolov3-cnv.tf \
+         --classes ./data/voc2012.names \
+         --num_classes 20 \
+         --mode fit \
+         --transfer darknet \
+         --batch_size 16 \
+         --epochs 10 \
+         --weights_num_classes 80 
+
+Launch tensort board to monitor training
+
+   echo docker run \
+        --user $(id -u) \
+        --workdir /yolov3-tf2 \
+        --volume $STAGE/data:/yolov3-tf2/voc.data \
+        --volume $STAGE/checkpoints:/yolov3-tf2/checkpoints \
+        --volume $STAGE/output:/yolov3-tf2/output \
+        --volume $STAGE/logs:/yolov3-tf2/logs \
+        marcus2002/yolov3-tf2-training:$TAG \
+        python train.py \
+         --dataset ./voc.data/voc2012_train.tfrecord \
+         --val_dataset ./voc.data/voc2012_val.tfrecord \
+         --weights ./voc.data/yolov3-cnv.tf \
+         --classes ./data/voc2012.names \
+         --num_classes 20 \
+         --mode fit \
+         --transfer darknet \
+         --batch_size 16 \
+         --epochs 10 \
+         --weights_num_classes 80 
+   
+
+
+Optionally, open ssh connection forwarding tensorboard port to localhost:6067
+
+    # This example takes ssh connection to localhost and reverse forwards
+    # port 6066 --> 6067. Change localhost target machine
+    ssh -R 6066:localhost:6067 
+  
+and launch browser 
+
+     http://localhost:6067
+#+end_example
 
 #+RESULTS:
 : marcus2002/yolov3-tf2-training - Dockerize yolov3-tf2 from  https://github.com/zzh8829/yolov3-tf2
@@ -437,7 +671,7 @@ docker run --user $(id -u)  marcus2002/yolov3-tf2-training:$TAG python ../gpu-ch
 
 
 
-* Run  =yolov-tf3=  in Docker
+* Image detection  =yolov-tf3=  in Docker
 
 ** Prepare directory structure under =$STAGE= directory
 
@@ -448,6 +682,7 @@ docker run --user $(id -u)  marcus2002/yolov3-tf2-training:$TAG python ../gpu-ch
   mkdir -p $STAGE/yolov3-tf2/weights
   mkdir -p $STAGE/yolov3-tf2/meta
   mkdir -p $STAGE/yolov3-tf2/data
+  mkdir -p $STAGE/yolov3-tf2/logs
 #+END_SRC
 
 #+RESULTS: yolov3-tf2-directories
@@ -468,53 +703,6 @@ Check that they are there
 #+BEGIN_SRC sh :eval no-export :results output :var STAGE=stage-dir
 ls -ltr ${STAGE}/weights
 #+END_SRC
-
-
-** Inspect docker volume bindings
-
-#+name: yolov3-tf-volumes
-#+BEGIN_SRC sh :eval no-export :results output :var STAGE=stage-directory :var TAG=tag-number
-  docker run \
-       --user $(id -u) \
-       --workdir /yolov3-tf2 \
-       --volume $STAGE/checkpoints:/yolov3-tf2/checkpoints \
-       --volume $STAGE/output:/yolov3-tf2/output \
-       --volume $STAGE/data:/yolov3-tf2/voc.data \
-       marcus2002/yolov3-tf2-training:$TAG \
-       bash -c "echo $(whoami); ls -ltr checkpoints output voc.data"
-#+END_SRC
-
-#+RESULTS: yolov3-tf-volumes
-#+begin_example
-jj
-voc.data:
-total 1315772
--rw-r--r-- 1 1000 1000 678662716 Apr 17 08:48 voc2012_val.tfrecord
--rw-r--r-- 1 1000 1000 668674204 Apr 22 05:41 voc2012_train.tfrecord
-
-checkpoints:
-total 2269508
--rw-rw-r-- 1 1000 1000     24143 Apr  9 09:33 yolov3.tf.index
--rw-r--r-- 1 1000 1000 415129482 Apr 17 13:36 yolov3_train_1.tf.data-00000-of-00001
--rw-r--r-- 1 1000 1000     34394 Apr 17 13:36 yolov3_train_1.tf.index
--rw-r--r-- 1 1000 1000     34394 Apr 17 15:07 yolov3_train_2.tf.index
--rw-r--r-- 1 1000 1000 415129482 Apr 17 15:07 yolov3_train_2.tf.data-00000-of-00001
--rw-r--r-- 1 1000 1000 415129482 Apr 17 16:38 yolov3_train_3.tf.data-00000-of-00001
--rw-r--r-- 1 1000 1000     34394 Apr 17 16:38 yolov3_train_3.tf.index
--rw-r--r-- 1 1000 1000 415129482 Apr 17 18:08 yolov3_train_4.tf.data-00000-of-00001
--rw-r--r-- 1 1000 1000     34394 Apr 17 18:08 yolov3_train_4.tf.index
--rw-r--r-- 1 1000 1000 415129482 Apr 17 18:28 yolov3_train_5.tf.data-00000-of-00001
--rw-r--r-- 1 1000 1000     34394 Apr 17 18:28 yolov3_train_5.tf.index
--rw-r--r-- 1 root root 248070167 Apr 23 09:02 yolov3-cnv.tf.data-00000-of-00001
--rw-r--r-- 1 root root     24143 Apr 23 09:02 yolov3-cnv.tf.index
--rw-r--r-- 1 root root        83 Apr 23 09:02 checkpoint
-
-output:
-total 976
--rw-r--r-- 1 root root  74410 Apr 22 05:42 random.jpg
--rw-rw-r-- 1 1000 1000      6 Apr 23 07:40 hello.txt
--rw-r--r-- 1 root root 914263 Apr 23 09:10 after-cnv.jpg
-#+end_example
 
 
 
@@ -541,6 +729,7 @@ Create =$STAGE/data/yolov3-cnv.tf=
 #+name: yolov3-tf2-convert
 #+BEGIN_SRC sh :eval no-export :results output :var STAGE=stage-directory :var TAG=tag-number
   docker run \
+       --user $(id -u) \
        --workdir /yolov3-tf2 \
        --volume $STAGE/weights:/yolov3-tf2/weights \
        --volume $STAGE/checkpoints:/yolov3-tf2/checkpoints \
@@ -653,6 +842,8 @@ Exmples in =yolov3-tf2/data= directory
 
 [[file:~/stage/yolov3-tf2/output/after-cnv.jpg]]
 
+
+* Training
 
 ** Download  =VOCdevkit= and extract it to =$STAGE/voc2012_raw=
 
@@ -790,7 +981,50 @@ Expect to see =voc2012_train.tfrecord= and =voc2012_val.tfrecord=
  : -rw-r--r-- 1 jj   root 678662716 huhti 24 09:47 voc2012_val.tfrecord
 
 
+** Inspect docker volume bindings
+
+#+name: yolov3-tf-volumes
+#+BEGIN_SRC sh :eval no-export :results output :var STAGE=stage-directory :var TAG=tag-number
+  docker run \
+       --user $(id -u) \
+       --workdir /yolov3-tf2 \
+       --volume $STAGE/checkpoints:/yolov3-tf2/checkpoints \
+       --volume $STAGE/output:/yolov3-tf2/output \
+       --volume $STAGE/data:/yolov3-tf2/voc.data \
+       marcus2002/yolov3-tf2-training:$TAG \
+       bash -c "echo $(whoami); ls -ltr checkpoints output voc.data"
+#+END_SRC
+
+#+RESULTS: yolov3-tf-volumes
+#+begin_example
+jj
+output:
+total 416
+-rw-r--r-- 1 1000 root 284242 Apr 24 06:33 after-cnv.jpg
+-rw-r--r-- 1 root root  67768 Apr 24 06:50 random.jpg
+-rw-r--r-- 1 root root  67569 Apr 24 06:51 random2.jpg
+
+checkpoints:
+total 242316
+-rw-rw-r-- 1 1000 1000     24143 Apr  9 09:33 yolov3.tf.index
+-rw-r--r-- 1 root root 248070167 Apr 23 09:02 yolov3-cnv.tf.data-00000-of-00001
+-rw-r--r-- 1 root root     24143 Apr 23 09:02 yolov3-cnv.tf.index
+-rw-r--r-- 1 root root        83 Apr 23 09:02 checkpoint
+
+voc.data:
+total 3093792
+-rw-r--r-- 1 root root  248070167 Apr 24 06:27 yolov3-cnv.tf.data-00000-of-00001
+-rw-r--r-- 1 root root      24143 Apr 24 06:27 yolov3-cnv.tf.index
+-rw-r--r-- 1 root root         83 Apr 24 06:27 checkpoint
+-rw-r--r-- 1 1000 root  668674204 Apr 24 06:47 voc2012_train.tfrecord
+-rw-r--r-- 1 1000 root  678662716 Apr 24 06:47 voc2012_val.tfrecord
+-rw-rw-r-- 1 1000 1000 1572578623 Apr 24 07:36 yolov3.data.tgz
+#+end_example
+
+
 ** Ensure that tranlation was successful
+
+Inspect a picture in training dataset =$STAGE/data/voc2012_train.tfrecord=
 
 #+name: yolov3-tf2-random
 #+BEGIN_SRC sh :eval no-export :results output :var STAGE=stage-directory :var TAG=tag-number
@@ -807,9 +1041,10 @@ Expect to see =voc2012_train.tfrecord= and =voc2012_val.tfrecord=
 
 #+RESULTS: yolov3-tf2-random
 
-Check it [[file:~/stage/yolov3-tf2/output/random.jpg]]
+Open picture  [[file:~/stage/yolov3-tf2/output/random.jpg]]
 
 
+Inspect a picture in validation dataset =$STAGE/data/voc2012_val.tfrecord=
 #+name: yolov3-tf2-random2
 #+BEGIN_SRC sh :eval no-export :results output :var STAGE=stage-directory :var TAG=tag-number
   docker run \
@@ -825,25 +1060,29 @@ Check it [[file:~/stage/yolov3-tf2/output/random.jpg]]
 
 #+RESULTS: yolov3-tf2-random2
 
-Check it [[file:~/stage/yolov3-tf2/output/random2.jpg]]
+Open picture  [[file:~/stage/yolov3-tf2/output/random2.jpg]]
 
 
-** Run training
-
+** Train VOC2012
 
 Remove training result =$STAGE/checkpoints/yolov3_train= 
 
 #+BEGIN_SRC sh :eval no-export :results output :var STAGE=stage-directory
+rm -rf $STAGE/logs/*
 rm -f $STAGE/checkpoints/yolov3_train*
-ls -ltr $STAGE/checkpoints
+ls -ltr $STAGE/checkpoints $STAGE/logs
 #+END_SRC
 
 #+RESULTS:
+: /home/jj/stage/yolov3-tf2/checkpoints:
 : total 242316
 : -rw-rw-r-- 1 jj   jj       24143 huhti  9 12:33 yolov3.tf.index
 : -rw-r--r-- 1 root root 248070167 huhti 23 12:02 yolov3-cnv.tf.data-00000-of-00001
 : -rw-r--r-- 1 root root     24143 huhti 23 12:02 yolov3-cnv.tf.index
 : -rw-r--r-- 1 root root        83 huhti 23 12:02 checkpoint
+: 
+: /home/jj/stage/yolov3-tf2/logs:
+: total 0
 
 Show input data
 
@@ -854,8 +1093,9 @@ Show input data
        --volume $STAGE/data:/yolov3-tf2/voc.data \
        --volume $STAGE/checkpoints:/yolov3-tf2/checkpoints \
        --volume $STAGE/output:/yolov3-tf2/output \
+       --volume $STAGE/logs:/yolov3-tf2/logs \
        marcus2002/yolov3-tf2-training:$TAG \
-       ls  -ltr ./voc.data ./checkpoints ./data
+       ls  -ltr ./voc.data ./checkpoints ./data ./logs
 #+END_SRC
 
 #+RESULTS:
@@ -872,20 +1112,24 @@ total 2420
 -rw-r--r-- 1 root root    625 Apr 24 05:06 coco.names
 -rw-r--r-- 1 root root     75 Apr 24 05:06 checkpoint
 
-./voc.data:
-total 1558064
--rw-r--r-- 1 root root 248070167 Apr 24 06:27 yolov3-cnv.tf.data-00000-of-00001
--rw-r--r-- 1 root root     24143 Apr 24 06:27 yolov3-cnv.tf.index
--rw-r--r-- 1 root root        83 Apr 24 06:27 checkpoint
--rw-r--r-- 1 1000 root 668674204 Apr 24 06:47 voc2012_train.tfrecord
--rw-r--r-- 1 1000 root 678662716 Apr 24 06:47 voc2012_val.tfrecord
-
 ./checkpoints:
 total 242316
 -rw-rw-r-- 1 1000 1000     24143 Apr  9 09:33 yolov3.tf.index
 -rw-r--r-- 1 root root 248070167 Apr 23 09:02 yolov3-cnv.tf.data-00000-of-00001
 -rw-r--r-- 1 root root     24143 Apr 23 09:02 yolov3-cnv.tf.index
 -rw-r--r-- 1 root root        83 Apr 23 09:02 checkpoint
+
+./voc.data:
+total 3093792
+-rw-r--r-- 1 root root  248070167 Apr 24 06:27 yolov3-cnv.tf.data-00000-of-00001
+-rw-r--r-- 1 root root      24143 Apr 24 06:27 yolov3-cnv.tf.index
+-rw-r--r-- 1 root root         83 Apr 24 06:27 checkpoint
+-rw-r--r-- 1 1000 root  668674204 Apr 24 06:47 voc2012_train.tfrecord
+-rw-r--r-- 1 1000 root  678662716 Apr 24 06:47 voc2012_val.tfrecord
+-rw-rw-r-- 1 1000 1000 1572578623 Apr 24 07:36 yolov3.data.tgz
+
+./logs:
+total 0
 #+end_example
 
 Train dataset =$STAGE/data/voc2012_train.tfrecord= to detect =20=
@@ -895,7 +1139,7 @@ names in =voc2012.names= staring with initial weights
 
 *Notice*: Just echo the command to make it easier to paste terminal
 
-=+name: yolov3-tf2-1
+#+name: yolov3-tf2-1
 #+BEGIN_SRC sh :eval no-export :results output :var STAGE=stage-directory :var TAG=tag-number
   echo docker run \
        --user $(id -u) \
@@ -903,6 +1147,7 @@ names in =voc2012.names= staring with initial weights
        --volume $STAGE/data:/yolov3-tf2/voc.data \
        --volume $STAGE/checkpoints:/yolov3-tf2/checkpoints \
        --volume $STAGE/output:/yolov3-tf2/output \
+       --volume $STAGE/logs:/yolov3-tf2/logs \
        marcus2002/yolov3-tf2-training:$TAG \
        python train.py \
 	--dataset ./voc.data/voc2012_train.tfrecord \
@@ -917,24 +1162,131 @@ names in =voc2012.names= staring with initial weights
 	--weights_num_classes 80 
 #+END_SRC
 
-#+RESULTS:
-: docker run --user 1000 --workdir /yolov3-tf2 --volume /home/jj/stage/yolov3-tf2/data:/yolov3-tf2/voc.data --volume /home/jj/stage/yolov3-tf2/checkpoints:/yolov3-tf2/checkpoints --volume /home/jj/stage/yolov3-tf2/output:/yolov3-tf2/output marcus2002/yolov3-tf2-training:1 python train.py --dataset ./voc.data/voc2012_train.tfrecord --val_dataset ./voc.data/voc2012_val.tfrecord --weights ./voc.data/yolov3-cnv.tf --classes ./data/voc2012.names --num_classes 20 --mode fit --transfer darknet --batch_size 16 --epochs 10 --weights_num_classes 80
+#+RESULTS: yolov3-tf2-1
+: docker run --user 1000 --workdir /yolov3-tf2 --volume /home/jj/stage/yolov3-tf2/data:/yolov3-tf2/voc.data --volume /home/jj/stage/yolov3-tf2/checkpoints:/yolov3-tf2/checkpoints --volume /home/jj/stage/yolov3-tf2/output:/yolov3-tf2/output --volume /home/jj/stage/yolov3-tf2/logs:/yolov3-tf2/logs marcus2002/yolov3-tf2-training:1 python train.py --dataset ./voc.data/voc2012_train.tfrecord --val_dataset ./voc.data/voc2012_val.tfrecord --weights ./voc.data/yolov3-cnv.tf --classes ./data/voc2012.names --num_classes 20 --mode fit --transfer darknet --batch_size 16 --epochs 10 --weights_num_classes 80
 
 
-#+BEGIN_SRC sh :eval no-export :results output :var STAGE=stage-dir
-ls -ltr $STAGE/checkpoints
+#+BEGIN_SRC sh :eval no-export :results output :var STAGE=stage-directory
+ls -ltr $STAGE/checkpoints $STAGE/logs
 #+END_SRC
 
 #+RESULTS:
-: total 890012
-: -rw-rw-r-- 1 jj   jj   248070167 huhti  9 12:33 yolov3.tf.data-00000-of-00001
-: -rw-rw-r-- 1 jj   jj       24143 huhti  9 12:33 yolov3.tf.index
-: -rw-r--r-- 1 root root 248070167 huhti 17 10:40 yolov3-cnv.tf.data-00000-of-00001
-: -rw-r--r-- 1 root root     24143 huhti 17 10:40 yolov3-cnv.tf.index
-: -rw-r--r-- 1 root root 415129482 huhti 17 12:27 yolov3_train_1.tf.data-00000-of-00001
-: -rw-r--r-- 1 root root     34394 huhti 17 12:27 yolov3_train_1.tf.index
-: -rw-r--r-- 1 root root        91 huhti 17 12:27 checkpoint
+#+begin_example
+/home/jj/stage/yolov3-tf2/checkpoints:
+total 242316
+-rw-rw-r-- 1 jj   jj       24143 huhti  9 12:33 yolov3.tf.index
+-rw-r--r-- 1 root root 248070167 huhti 23 12:02 yolov3-cnv.tf.data-00000-of-00001
+-rw-r--r-- 1 root root     24143 huhti 23 12:02 yolov3-cnv.tf.index
+-rw-r--r-- 1 root root        83 huhti 23 12:02 checkpoint
 
+/home/jj/stage/yolov3-tf2/logs:
+total 4
+drwxr-xr-x 2 jj root 4096 huhti 27 09:46 train
+#+end_example
+
+
+** Launch tensorboard
+
+Check inspect mode
+
+#+BEGIN_SRC sh :eval no-export :results output :var STAGE=stage-directory :var TAG=tag-number
+   docker run \
+       --user $(id -u) \
+       --workdir /yolov3-tf2 \
+       --volume $STAGE/data:/yolov3-tf2/voc.data \
+       --volume $STAGE/checkpoints:/yolov3-tf2/checkpoints \
+       --volume $STAGE/output:/yolov3-tf2/output \
+       --net host \
+       --publish=6006:6006 \
+       --volume $STAGE/logs:/yolov3-tf2/logs \
+       marcus2002/yolov3-tf2-training:$TAG \
+           tensorboard \
+           --logdir /yolov3-tf2/logs \
+           --inspect
+
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+======================================================================
+Processing event files... (this can take a few minutes)
+======================================================================
+
+Found event files in:
+/yolov3-tf2/logs/train
+
+These tags are in /yolov3-tf2/logs/train:
+audio -
+histograms -
+images -
+scalars -
+tensor
+   batch_2
+   keras
+======================================================================
+
+Event statistics for /yolov3-tf2/logs/train:
+audio -
+graph
+   first_step           0
+   last_step            0
+   max_step             0
+   min_step             0
+   num_steps            1
+   outoforder_steps     []
+histograms -
+images -
+scalars -
+sessionlog:checkpoint -
+sessionlog:start -
+sessionlog:stop -
+tensor
+   first_step           0
+   last_step            2
+   max_step             2
+   min_step             0
+   num_steps            2
+   outoforder_steps     [(2, 0)]
+======================================================================
+
+#+end_example
+
+
+Launch tensorboard server (bindig to localhost 6006)
+
+#+name: yolov3-tf2-board
+#+BEGIN_SRC sh :eval no-export :results output :var STAGE=stage-directory :var TAG=tag-number
+echo   docker run \
+       --user $(id -u) \
+       --workdir /yolov3-tf2 \
+       --volume $STAGE/data:/yolov3-tf2/voc.data \
+       --volume $STAGE/checkpoints:/yolov3-tf2/checkpoints \
+       --volume $STAGE/output:/yolov3-tf2/output \
+       --volume $STAGE/logs:/yolov3-tf2/logs \
+       --net host \
+       --rm -it \
+       marcus2002/yolov3-tf2-training:$TAG \
+           tensorboard \
+              --logdir /yolov3-tf2/logs
+
+#+END_SRC
+
+#+RESULTS: yolov3-tf2-board
+: docker run --user 1000 --workdir /yolov3-tf2 --volume /home/jj/stage/yolov3-tf2/data:/yolov3-tf2/voc.data --volume /home/jj/stage/yolov3-tf2/checkpoints:/yolov3-tf2/checkpoints --volume /home/jj/stage/yolov3-tf2/output:/yolov3-tf2/output --volume /home/jj/stage/yolov3-tf2/logs:/yolov3-tf2/logs --net host --rm -it marcus2002/yolov3-tf2-training:1 tensorboard --logdir /yolov3-tf2/logs
+
+
+** Open ssh connection forwarding tensorboard port to localhost:6067
+
+#+name: yolov3-tf2-board-ssh
+#+BEGIN_SRC sh :eval no-export :results output :noweb yes
+  # This example takes ssh connection to localhost and reverse forwards
+  # tensorboard default port 6006 --> 6066.  Here using
+  # REMOTE=localhost
+  REMOTE=localhost; ssh -L 6066:localhost:6006 $REMOTE
+#+END_SRC
+
+Browse to to use the c
+http://localhost:6066
 
 
 * Push :var TAG=tag-number
