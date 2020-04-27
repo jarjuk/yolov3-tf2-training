@@ -39,7 +39,7 @@ Tag number of =marcus2002/yolov3-tf2-training= Docker
 
 
 
-* Manage  EC2 instances
+* Starup  EC2 instances
 
 ** Create stack =ec2.g4dn.amazon-dl.yaml=
 
@@ -48,7 +48,7 @@ Tag number of =marcus2002/yolov3-tf2-training= Docker
  - With Amanazon Linux 2 AMIn in frankfurt zone
 
  #+BEGIN_SRC yaml :tangle tmp/ec2.g4dn.amazon-dl.yaml
-   # With Deep learing ami 
+   # Do not edit. Tangled from README.org
    Resources:
      InstanceSecurityGroup:
        DeletionPolicy: Delete
@@ -150,7 +150,7 @@ Tag number of =marcus2002/yolov3-tf2-training= Docker
 
  #+RESULTS:
  : {
- :     "StackId": "arn:aws:cloudformation:eu-central-1:025876341083:stack/stakki1/e1635390-85fb-11ea-b036-0ac41be8cd2e"
+ :     "StackId": "arn:aws:cloudformation:eu-central-1:025876341083:stack/stakki1/227d0230-885f-11ea-8a06-0264b9b54242"
  : }
 
 
@@ -169,10 +169,6 @@ aws cloudformation describe-stacks | jq '.[][]| { StackName: .StackName, StackSt
 #+RESULTS:
 : {
 :   "StackName": "stakki1",
-:   "StackStatus": "CREATE_COMPLETE"
-: }
-: {
-:   "StackName": "bukee",
 :   "StackStatus": "CREATE_COMPLETE"
 : }
 
@@ -389,9 +385,9 @@ aws ec2 describe-instances | jq '.[][].Instances[] | select( .State.Name == "run
 
 #+RESULTS:
 : {
-:   "dns": "ec2-35-159-24-254.eu-central-1.compute.amazonaws.com",
+:   "dns": "ec2-3-122-60-85.eu-central-1.compute.amazonaws.com",
 :   "ami": "ami-0e29cd2e136f11293",
-:   "InstanceId": "i-0d2f2640a7e3743f5",
+:   "InstanceId": "i-0ee6b2c3f2811ac1d",
 :   "state": "running",
 :   "InstanceType": "g4dn.xlarge"
 : }
@@ -406,8 +402,8 @@ echo <<ssh-ubuntu>>
 #+END_SRC
 
 #+RESULTS:
-: ssh -i /home/jj/.ssh/marcus-frankfurt/marcus-franfurt.pem ec2-user@ec2-35-159-24-254.eu-central-1.compute.amazonaws.com
-: ssh -i /home/jj/.ssh/marcus-frankfurt/marcus-franfurt.pem ubuntu@ec2-35-159-24-254.eu-central-1.compute.amazonaws.com
+: ssh -i /home/jj/.ssh/marcus-frankfurt/marcus-franfurt.pem ec2-user@ec2-3-122-60-85.eu-central-1.compute.amazonaws.com
+: ssh -i /home/jj/.ssh/marcus-frankfurt/marcus-franfurt.pem ubuntu@ec2-3-122-60-85.eu-central-1.compute.amazonaws.com
 
 
  #+BEGIN_SRC sh :eval no-export :results output :noweb yes
@@ -430,321 +426,19 @@ echo <<ssh-ubuntu>>
  : Hello User 1000:1000 on ip-172-31-47-204.eu-central-1.compute.internal
 
 
-** Run docker =marcus2002/tf-gpu-checker:6=
-   
 
-*** Usage: 
- #+BEGIN_SRC sh :eval no-export :results output :noweb yes
-  <<ssh-ec2>>  sudo docker run  marcus2002/tf-gpu-checker:6 || true
- #+END_SRC
-
- #+RESULTS:
- : gpu-checker.py  -  tensorflow GPU tester usage
- : gpu-checker.py  cpu|gpu [0-9]|list|test
-
-
-*** List
- #+BEGIN_SRC sh :eval no-export :results output :noweb yes
-  <<ssh-ec2>>  sudo nvidia-docker run  marcus2002/tf-gpu-checker:6 list
- #+END_SRC
-
- #+RESULTS:
- #+begin_example
- device_lib.list_local_devices() = [name: "/device:CPU:0"
- device_type: "CPU"
- memory_limit: 268435456
- locality {
- }
- incarnation: 9744715576244972587
- , name: "/device:XLA_CPU:0"
- device_type: "XLA_CPU"
- memory_limit: 17179869184
- locality {
- }
- incarnation: 16740619013586793133
- physical_device_desc: "device: XLA_CPU device"
- , name: "/device:XLA_GPU:0"
- device_type: "XLA_GPU"
- memory_limit: 17179869184
- locality {
- }
- incarnation: 18264200861144769592
- physical_device_desc: "device: XLA_GPU device"
- , name: "/device:GPU:0"
- device_type: "GPU"
- memory_limit: 14784367168
- locality {
-   bus_id: 1
-   links {
-   }
- }
- incarnation: 665892608446454497
- physical_device_desc: "device: 0, name: Tesla T4, pci bus id: 0000:00:1e.0, compute capability: 7.5"
- ]
- Devices: [_DeviceAttributes(/job:localhost/replica:0/task:0/device:CPU:0, CPU, 268435456, 3240473296435325983), _DeviceAttributes(/job:localhost/replica:0/task:0/device:XLA_CPU:0, XLA_CPU, 17179869184, -274635117949149829), _DeviceAttributes(/job:localhost/replica:0/task:0/device:XLA_GPU:0, XLA_GPU, 17179869184, -7620521750751868766), _DeviceAttributes(/job:localhost/replica:0/task:0/device:GPU:0, GPU, 14784367168, -5956744840926436734)]
- #+end_example
-
-
-
-
-*** Test
-
-
- *nvidia-docker*
- #+BEGIN_SRC sh :eval no-export :results output :noweb yes
-  ## <<ssh-ec2>>  bash -c "sudo nvidia-docker run  marcus2002/tf-gpu-checker:6 test"
-  <<ssh-ec2>>  sudo nvidia-docker run  marcus2002/tf-gpu-checker:6 test
- #+END_SRC
-
- #+RESULTS:
- : tf.test.is_gpu_available()= True
- : tf.config.list_physical_devices('GPU')= [PhysicalDevice(name='/physical_device:GPU:0', device_type='GPU')]
- : tf.config.list_physical_devices('CPU')= [PhysicalDevice(name='/physical_device:CPU:0', device_type='CPU')]
- : tf.test.is_built_with_cuda()= True
-
-
-
-
-*docker*
- #+BEGIN_SRC sh :eval no-export :results output :noweb yes
-  <<ssh-ec2>>  sudo docker run  marcus2002/tf-gpu-checker:6 test
- #+END_SRC
-
- #+RESULTS:
- : tf.test.is_gpu_available()= False
- : tf.config.list_physical_devices('GPU')= []
- : tf.config.list_physical_devices('CPU')= [PhysicalDevice(name='/physical_device:CPU:0', device_type='CPU')]
- : tf.test.is_built_with_cuda()= True
-
-
-*** cpu
- #+BEGIN_SRC sh :eval no-export :results output :noweb yes
-  <<ssh-ec2>>  sudo nvidia-docker run  marcus2002/tf-gpu-checker:6 cpu
- #+END_SRC
-
- #+RESULTS:
- : Using CPU
- : c= tf.Tensor(
- : [[22. 28.]
- :  [49. 64.]], shape=(2, 2), dtype=float32)
- : Device mapping:
- : /job:localhost/replica:0/task:0/device:XLA_CPU:0 -> device: XLA_CPU device
- : /job:localhost/replica:0/task:0/device:XLA_GPU:0 -> device: XLA_GPU device
- : /job:localhost/replica:0/task:0/device:GPU:0 -> device: 0, name: Tesla T4, pci bus id: 0000:00:1e.0, compute capability: 7.5
-
-
-*** GPU check
- #+BEGIN_SRC sh :eval no-export :results output :noweb yes
-  <<ssh-ec2>>  sudo nvidia-docker run  marcus2002/tf-gpu-checker:6 gpu 0
- #+END_SRC
-
- #+RESULTS:
- : device_name= /gpu:0
- : c= tf.Tensor(
- : [[22. 28.]
- :  [49. 64.]], shape=(2, 2), dtype=float32)
- : Device mapping:
- : /job:localhost/replica:0/task:0/device:XLA_CPU:0 -> device: XLA_CPU device
- : /job:localhost/replica:0/task:0/device:XLA_GPU:0 -> device: XLA_GPU device
- : /job:localhost/replica:0/task:0/device:GPU:0 -> device: 0, name: Tesla T4, pci bus id: 0000:00:1e.0, compute capability: 7.5
-
- #+begin_example
- 2020-04-16 07:32:35.714273: I tensorflow/stream_executor/platform/default/dso_loader.cc:44] Successfully opened dynamic library libcuda.so.1
- 2020-04-16 07:32:35.727147: E tensorflow/stream_executor/cuda/cuda_driver.cc:351] failed call to cuInit: CUDA_ERROR_NO_DEVICE: no CUDA-capable device is detected
- 2020-04-16 07:32:35.727210: I tensorflow/stream_executor/cuda/cuda_diagnostics.cc:156] kernel driver does not appear to be running on this host (1fc4a111d5f6): /proc/driver/nvidia/version does not exist
- 2020-04-16 07:32:35.727828: I tensorflow/core/platform/cpu_feature_guard.cc:142] Your CPU supports instructions that this TensorFlow binary was not compiled to use: SSE4.1 SSE4.2 AVX AVX2 AVX512F FMA
- 2020-04-16 07:32:35.734001: I tensorflow/core/platform/profile_utils/cpu_utils.cc:94] CPU Frequency: 2499995000 Hz
- 2020-04-16 07:32:35.734312: I tensorflow/compiler/xla/service/service.cc:168] XLA service 0x55a973e5ecf0 initialized for platform Host (this does not guarantee that XLA will be used). Devices:
- 2020-04-16 07:32:35.734370: I tensorflow/compiler/xla/service/service.cc:176]   StreamExecutor device (0): Host, Default Version
- device_name= /gpu:0
- Traceback (most recent call last):
-   File "gpu-checker.py", line 34, in <module>
-     a = tf.constant([1.0, 2.0, 3.0, 4.0, 5.0, 6.0], shape=[2, 3], name='a')
-   File "/opt/conda/lib/python3.7/site-packages/tensorflow_core/python/framework/constant_op.py", line 258, in constant
-     allow_broadcast=True)
-   File "/opt/conda/lib/python3.7/site-packages/tensorflow_core/python/framework/constant_op.py", line 266, in _constant_impl
-     t = convert_to_eager_tensor(value, ctx, dtype)
-   File "/opt/conda/lib/python3.7/site-packages/tensorflow_core/python/framework/constant_op.py", line 96, in convert_to_eager_tensor
-     return ops.EagerTensor(value, ctx.device_name, dtype)
- RuntimeError: /job:localhost/replica:0/task:0/device:GPU:0 unknown device.
- #+end_example
-
-
-** Delete stack =stakki1=
-
-#+BEGIN_SRC sh :eval no-export :results output
-aws cloudformation delete-stack --stack-name stakki1
-#+END_SRC
-
-
-
-#+RESULTS:
-
-#+BEGIN_SRC sh :eval no-export :results output
-aws cloudformation delete-stack --stack-name bukee
-#+END_SRC
-
-#+RESULTS:
-
-
-*Ensure nothing there!!*
-
-#+BEGIN_SRC sh :eval no-export :results output
-aws cloudformation describe-stacks
-aws ec2 describe-instances | jq '.[][].Instances[] |  { dns: .PublicDnsName, ami: .ImageId,  InstanceId: .InstanceId, state: .State }'
-#+END_SRC
-
-
-#+RESULTS:
-#+begin_example
-{
-    "Stacks": [
-        {
-            "StackId": "arn:aws:cloudformation:eu-central-1:025876341083:stack/stakki1/e1635390-85fb-11ea-b036-0ac41be8cd2e",
-            "StackName": "stakki1",
-            "CreationTime": "2020-04-24T07:19:05.380000+00:00",
-            "DeletionTime": "2020-04-24T10:16:19.240000+00:00",
-            "RollbackConfiguration": {},
-            "StackStatus": "DELETE_IN_PROGRESS",
-            "DisableRollback": true,
-            "NotificationARNs": [],
-            "Capabilities": [
-                "CAPABILITY_IAM"
-            ],
-            "Tags": [],
-            "DriftInformation": {
-                "StackDriftStatus": "NOT_CHECKED"
-            }
-        },
-        {
-            "StackId": "arn:aws:cloudformation:eu-central-1:025876341083:stack/bukee/5654e910-82dd-11ea-a565-067c398aa192",
-            "StackName": "bukee",
-            "CreationTime": "2020-04-20T08:02:53.650000+00:00",
-            "DeletionTime": "2020-04-24T10:16:54.949000+00:00",
-            "RollbackConfiguration": {},
-            "StackStatus": "DELETE_FAILED",
-            "StackStatusReason": "The following resource(s) failed to delete: [RootBucket]. ",
-            "DisableRollback": true,
-            "NotificationARNs": [],
-            "Capabilities": [
-                "CAPABILITY_IAM"
-            ],
-            "Tags": [],
-            "DriftInformation": {
-                "StackDriftStatus": "NOT_CHECKED"
-            }
-        }
-    ]
-}
-{
-  "dns": "ec2-35-159-24-254.eu-central-1.compute.amazonaws.com",
-  "ami": "ami-0e29cd2e136f11293",
-  "InstanceId": "i-0d2f2640a7e3743f5",
-  "state": {
-    "Code": 32,
-    "Name": "shutting-down"
-  }
-}
-#+end_example
-
-
-
-
-* Training =yolov3-tf2=
-
-** Create data directories
-
- #+BEGIN_SRC sh :eval no-export :results output :noweb yes
-   <<ssh-ec2>> bash -c 'test -d checkpoints  &&  mkdir checkpoints'
-   <<ssh-ec2>> bash -c 'test  -d data  && mkdir data'
-   <<ssh-ec2>> bash -c 'test  -d voc.meta  && mkdir voc.meta'
-   <<ssh-ec2>> bash -c 'test  -d output  && mkdir output'
- #+END_SRC
-
- #+RESULTS:
-
-
-** Copy data
-
-#+BEGIN_SRC sh :eval no-export :results output :var STAGE=stage-directory
-ls -ltr $STAGE/data
-#+END_SRC
-
-#+RESULTS:
-: total 1558064
-: -rw-r--r-- 1 root root 248070167 huhti 24 09:27 yolov3-cnv.tf.data-00000-of-00001
-: -rw-r--r-- 1 root root     24143 huhti 24 09:27 yolov3-cnv.tf.index
-: -rw-r--r-- 1 root root        83 huhti 24 09:27 checkpoint
-: -rw-r--r-- 1 jj   root 668674204 huhti 24 09:47 voc2012_train.tfrecord
-: -rw-r--r-- 1 jj   root 678662716 huhti 24 09:47 voc2012_val.tfrecord
-
-#+BEGIN_SRC sh :eval no-export :results output :var STAGE=stage-directory 
-tar cvfz $STAGE/data/yolov3.data.tgz -C $STAGE/data ./yolov3-cnv.tf.data-00000-of-00001 ./yolov3-cnv.tf.index ./voc2012_train.tfrecord ./voc2012_val.tfrecord
-#+END_SRC
-
-#+RESULTS:
-: ./yolov3-cnv.tf.data-00000-of-00001
-: ./yolov3-cnv.tf.index
-: ./voc2012_train.tfrecord
-: ./voc2012_val.tfrecord
-
-#+BEGIN_SRC sh :eval no-export :results output :var STAGE=stage-directory
-ls -ltr $STAGE/data
-#+END_SRC
-
-#+RESULTS:
-: total 3093792
-: -rw-r--r-- 1 root root  248070167 huhti 24 09:27 yolov3-cnv.tf.data-00000-of-00001
-: -rw-r--r-- 1 root root      24143 huhti 24 09:27 yolov3-cnv.tf.index
-: -rw-r--r-- 1 root root         83 huhti 24 09:27 checkpoint
-: -rw-r--r-- 1 jj   root  668674204 huhti 24 09:47 voc2012_train.tfrecord
-: -rw-r--r-- 1 jj   root  678662716 huhti 24 09:47 voc2012_val.tfrecord
-: -rw-rw-r-- 1 jj   jj   1572578623 huhti 24 10:36 yolov3.data.tgz
-
-
-#+BEGIN_SRC sh :eval no-export :results output :var STAGE=stage-directory
-scp $STAGE/data/yolov3.data.tgz frankfurt:.
-#+END_SRC
-
-#+RESULTS:
-
-#+BEGIN_SRC sh :eval no-export :results output :noweb yes
-<<ssh-ec2>> ls  -ltr  data
-<<ssh-ec2>> tar tvfz yolov3.data.tgz
-#+END_SRC
-
-#+RESULTS:
-: total 0
-: -rw-r--r-- root/root 248070167 2020-04-24 06:27 ./yolov3-cnv.tf.data-00000-of-00001
-: -rw-r--r-- root/root     24143 2020-04-24 06:27 ./yolov3-cnv.tf.index
-: -rw-r--r-- jj/root   668674204 2020-04-24 06:47 ./voc2012_train.tfrecord
-: -rw-r--r-- jj/root   678662716 2020-04-24 06:47 ./voc2012_val.tfrecord
-
-extract
-
-#+BEGIN_SRC sh :eval no-export :results output :noweb yes
-<<ssh-ec2>> tar xvfz yolov3.data.tgz -C data .
-#+END_SRC
-
-#+RESULTS:
-: ./yolov3-cnv.tf.data-00000-of-00001
-: ./yolov3-cnv.tf.index
-: ./voc2012_train.tfrecord
-: ./voc2012_val.tfrecord
-
-#+BEGIN_SRC sh :eval no-export :results output :noweb yes
-<<ssh-ec2>> ls  -ltr  data
-#+END_SRC
-
-#+RESULTS:
-: total 1558048
-: -rw-r--r-- 1 ec2-user ec2-user     24143 24.4. 06:27 yolov3-cnv.tf.index
-: -rw-r--r-- 1 ec2-user ec2-user 248070167 24.4. 06:27 yolov3-cnv.tf.data-00000-of-00001
-: -rw-r--r-- 1 ec2-user ec2-user 668674204 24.4. 06:47 voc2012_train.tfrecord
-: -rw-r--r-- 1 ec2-user ec2-user 678662716 24.4. 06:47 voc2012_val.tfrecord
-
+* Install docker =marcus2002/yolov3-tf2-training:$TAG=
 
 ** gpu-checker usage
+
+Here just echo to allow copy-paste to terminal screen
+
+#+BEGIN_SRC sh :eval no-export :results output :noweb yes  :var TAG=docker-tag-number
+echo  nvidia-docker run  marcus2002/yolov3-tf2-training:$TAG python ../gpu-checker.py || true
+#+END_SRC
+
+
+Here run on remote machine:
 
 #+BEGIN_SRC sh :eval no-export :results output :noweb yes  :var TAG=docker-tag-number
 <<ssh-ec2>> nvidia-docker run  marcus2002/yolov3-tf2-training:$TAG python ../gpu-checker.py || true
@@ -791,22 +485,143 @@ Device mapping:
 #+end_example
 
 
+* Training  and detection
+
+** Create remote data directories
+
+ #+BEGIN_SRC sh :eval no-export :results output :noweb yes
+   <<ssh-ec2>> mkdir checkpoints
+   <<ssh-ec2>> mkdir data
+   <<ssh-ec2>> mkdir voc.meta
+   <<ssh-ec2>> mkdir output
+   <<ssh-ec2>> mkdir logs
+ #+END_SRC
+
+ #+RESULTS:
+
+
+** Copy local data to EC2
+
+VOC2012 images and converted darknet weights in =$STAGE/data=
+-directory prepared previously in [[file:docker.org]]
+
+#+BEGIN_SRC sh :eval no-export :results output :var STAGE=stage-directory
+ls -ltr $STAGE/data
+#+END_SRC
+
+#+RESULTS:
+: total 3093792
+: -rw-r--r-- 1 root root  248070167 huhti 24 09:27 yolov3-cnv.tf.data-00000-of-00001
+: -rw-r--r-- 1 root root      24143 huhti 24 09:27 yolov3-cnv.tf.index
+: -rw-r--r-- 1 root root         83 huhti 24 09:27 checkpoint
+: -rw-r--r-- 1 jj   root  668674204 huhti 24 09:47 voc2012_train.tfrecord
+: -rw-r--r-- 1 jj   root  678662716 huhti 24 09:47 voc2012_val.tfrecord
+: -rw-rw-r-- 1 jj   jj   1572578623 huhti 24 10:36 yolov3.data.tgz
+
+Create comporessed tar file.
+
+#+BEGIN_SRC sh :eval no-export :results output :var STAGE=stage-directory 
+tar cvfz $STAGE/data/yolov3.data.tgz -C $STAGE/data ./yolov3-cnv.tf.data-00000-of-00001 ./yolov3-cnv.tf.index ./voc2012_train.tfrecord ./voc2012_val.tfrecord
+#+END_SRC
+
+#+RESULTS:
+: ./yolov3-cnv.tf.data-00000-of-00001
+: ./yolov3-cnv.tf.index
+: ./voc2012_train.tfrecord
+: ./voc2012_val.tfrecord
+
+Show data directory, epxect to seen newly created =yolov3.data.tgz=
+
+#+BEGIN_SRC sh :eval no-export :results output :var STAGE=stage-directory
+ls -ltr $STAGE/data
+#+END_SRC
+
+#+RESULTS:
+: total 3093792
+: -rw-r--r-- 1 root root  248070167 huhti 24 09:27 yolov3-cnv.tf.data-00000-of-00001
+: -rw-r--r-- 1 root root      24143 huhti 24 09:27 yolov3-cnv.tf.index
+: -rw-r--r-- 1 root root         83 huhti 24 09:27 checkpoint
+: -rw-r--r-- 1 jj   root  668674204 huhti 24 09:47 voc2012_train.tfrecord
+: -rw-r--r-- 1 jj   root  678662716 huhti 24 09:47 voc2012_val.tfrecord
+: -rw-rw-r-- 1 jj   jj   1572578623 huhti 27 11:30 yolov3.data.tgz
+
+Copy =yolov3.data.tgz= to remote machine. In this example, to SSH alias =franfurt=.
+
+#+BEGIN_SRC sh :eval no-export :results output :var STAGE=stage-directory
+scp $STAGE/data/yolov3.data.tgz frankfurt:.
+#+END_SRC
+
+#+RESULTS:
+
+Show transfer result
+
+#+BEGIN_SRC sh :eval no-export :results output :noweb yes
+<<ssh-ec2>> ls  -ltr  data
+<<ssh-ec2>> tar tvfz yolov3.data.tgz
+#+END_SRC
+
+#+RESULTS:
+: total 0
+: -rw-r--r-- root/root 248070167 2020-04-24 06:27 ./yolov3-cnv.tf.data-00000-of-00001
+: -rw-r--r-- root/root     24143 2020-04-24 06:27 ./yolov3-cnv.tf.index
+: -rw-r--r-- jj/root   668674204 2020-04-24 06:47 ./voc2012_train.tfrecord
+: -rw-r--r-- jj/root   678662716 2020-04-24 06:47 ./voc2012_val.tfrecord
+
+Extract trasfer file on remote
+
+#+BEGIN_SRC sh :eval no-export :results output :noweb yes
+<<ssh-ec2>> tar xvfz yolov3.data.tgz -C data .
+#+END_SRC
+
+#+RESULTS:
+: ./yolov3-cnv.tf.data-00000-of-00001
+: ./yolov3-cnv.tf.index
+: ./voc2012_train.tfrecord
+: ./voc2012_val.tfrecord
+
+Check remote directory
+
+#+BEGIN_SRC sh :eval no-export :results output :noweb yes
+<<ssh-ec2>> ls  -ltr  data
+#+END_SRC
+
+#+RESULTS:
+: total 1558048
+: -rw-r--r-- 1 ec2-user ec2-user     24143 24.4. 06:27 yolov3-cnv.tf.index
+: -rw-r--r-- 1 ec2-user ec2-user 248070167 24.4. 06:27 yolov3-cnv.tf.data-00000-of-00001
+: -rw-r--r-- 1 ec2-user ec2-user 668674204 24.4. 06:47 voc2012_train.tfrecord
+: -rw-r--r-- 1 ec2-user ec2-user 678662716 24.4. 06:47 voc2012_val.tfrecord
+
+
+Cleanup transfer file
+
+#+BEGIN_SRC sh :eval no-export :results output :noweb yes
+<<ssh-ec2>> rm -f yolov3.data.tgz
+#+END_SRC
+
+#+RESULTS:
+
+
 ** Run training
 
+*** Start training session 1
+Inspect volume bidings seen in docker
+
 #+BEGIN_SRC sh :eval no-export :results output :var STAGE=remote-stage-directory :var TAG=docker-tag-number :noweb yes
-  <<ssh-ec2>> nvidia-docker run \
+  <<ssh-ec2>> sudo nvidia-docker run \
        --user $(id -u) \
        --workdir /yolov3-tf2 \
-       --volume $STAGE/data:/yolov3-tf2/voc.data \
        --volume $STAGE/checkpoints:/yolov3-tf2/checkpoints \
        --volume $STAGE/output:/yolov3-tf2/output \
+       --volume $STAGE/data:/yolov3-tf2/voc.data \
+       --volume $STAGE/logs:/yolov3-tf2/logs \
        marcus2002/yolov3-tf2-training:$TAG \
-       ls  -ltr ./voc.data ./checkpoints ./data
+       ls -ltr voc.data data logs checkpoints
 #+END_SRC
 
 #+RESULTS:
 #+begin_example
-./data:
+data:
 total 2420
 -rw-r--r-- 1 root root    135 Apr 24 05:06 voc2012.names
 -rw-r--r-- 1 root root 285600 Apr 24 05:06 street_out.jpg
@@ -818,10 +633,13 @@ total 2420
 -rw-r--r-- 1 root root    625 Apr 24 05:06 coco.names
 -rw-r--r-- 1 root root     75 Apr 24 05:06 checkpoint
 
-./checkpoints:
+checkpoints:
 total 0
 
-./voc.data:
+logs:
+total 0
+
+voc.data:
 total 1558048
 -rw-r--r-- 1 1000 1000     24143 Apr 24 06:27 yolov3-cnv.tf.index
 -rw-r--r-- 1 1000 1000 248070167 Apr 24 06:27 yolov3-cnv.tf.data-00000-of-00001
@@ -830,6 +648,8 @@ total 1558048
 #+end_example
 
 
+Start training (here just echo command to paste it on terminal)
+
 #+BEGIN_SRC sh :eval no-export :results output :var STAGE=remote-stage-directory  :var TAG=docker-tag-number :noweb yes
  <<ssh-ec2>>  echo sudo nvidia-docker run \
        --workdir /yolov3-tf2 \
@@ -837,6 +657,7 @@ total 1558048
        --volume $STAGE/checkpoints:/yolov3-tf2/checkpoints \
        --volume $STAGE/voc.meta:/yolov3-tf2/meta \
        --volume $STAGE/output:/yolov3-tf2/output \
+       --volume $STAGE/logs:/yolov3-tf2/logs \
        marcus2002/yolov3-tf2-training:$TAG \
        python train.py \
 	--dataset ./voc.data/voc2012_train.tfrecord \
@@ -852,90 +673,289 @@ total 1558048
 #+END_SRC
 
 #+RESULTS:
-: sudo nvidia-docker run --workdir /yolov3-tf2 --volume /home/ec2-user/data:/yolov3-tf2/voc.data --volume /home/ec2-user/checkpoints:/yolov3-tf2/checkpoints --volume /home/ec2-user/voc.meta:/yolov3-tf2/meta --volume /home/ec2-user/output:/yolov3-tf2/output marcus2002/yolov3-tf2-training:1 python train.py --dataset ./voc.data/voc2012_train.tfrecord --val_dataset ./voc.data/voc2012_val.tfrecord --weights ./voc.data/yolov3-cnv.tf --classes ./data/voc2012.names --num_classes 20 --mode fit --transfer darknet --batch_size 16 --epochs 10 --weights_num_classes 80
+: sudo nvidia-docker run --workdir /yolov3-tf2 --volume /home/ec2-user/data:/yolov3-tf2/voc.data --volume /home/ec2-user/checkpoints:/yolov3-tf2/checkpoints --volume /home/ec2-user/voc.meta:/yolov3-tf2/meta --volume /home/ec2-user/output:/yolov3-tf2/output --volume /home/ec2-user/logs:/yolov3-tf2/logs marcus2002/yolov3-tf2-training:1 python train.py --dataset ./voc.data/voc2012_train.tfrecord --val_dataset ./voc.data/voc2012_val.tfrecord --weights ./voc.data/yolov3-cnv.tf --classes ./data/voc2012.names --num_classes 20 --mode fit --transfer darknet --batch_size 16 --epochs 10 --weights_num_classes 80
 
-Result
+
+*** Launch tensorboard
+
+Using echo to create command to paste on terminal
+
+#+BEGIN_SRC sh :eval no-export :results output :var STAGE=remote-stage-directory  :var TAG=docker-tag-number :noweb yes
+ <<ssh-ec2>>  echo sudo nvidia-docker run \
+       --user $(id -u) \
+       --workdir /yolov3-tf2 \
+       --volume $STAGE/data:/yolov3-tf2/voc.data \
+       --volume $STAGE/checkpoints:/yolov3-tf2/checkpoints \
+       --volume $STAGE/output:/yolov3-tf2/output \
+       --volume $STAGE/logs:/yolov3-tf2/logs \
+       --net host \
+       --rm -it \
+       marcus2002/yolov3-tf2-training:$TAG \
+           tensorboard \
+              --logdir /yolov3-tf2/logs
+#+END_SRC
+
+#+RESULTS:
+: sudo nvidia-docker run --user 1000 --workdir /yolov3-tf2 --volume /home/ec2-user/data:/yolov3-tf2/voc.data --volume /home/ec2-user/checkpoints:/yolov3-tf2/checkpoints --volume /home/ec2-user/output:/yolov3-tf2/output --volume /home/ec2-user/logs:/yolov3-tf2/logs --net host --rm -it marcus2002/yolov3-tf2-training:1 tensorboard --logdir /yolov3-tf2/logs
+
+Launch ssh connection to tunnel tensorboard default port to localhost
+
+#+name: yolov3-tf2-board-ssh
+#+BEGIN_SRC sh :eval no-export :results output :noweb yes
+  # This example takes ssh connection to localhost and reverse forwards
+  # tensorboard default port 6006 --> 16006.  Here using
+  # REMOTE=frankfurt
+  export REMOTE=frankfurt; ssh -L 16006:localhost:6006 $REMOTE
+#+END_SRC
+
+#+RESULTS: yolov3-tf2-board-ssh
+
+Browse to to use the c
+http://localhost:16006
+
+
+
+
+
+
+*** Session 1: early stopping
+
 #+begin_example
-Epoch 00009: saving model to checkpoints/yolov3_train_9.tf
-358/358 [==============================] - 328s 917ms/step - loss: 16.1118 - yolo_output_0_loss: 1.3019 - yolo_output_1_loss: 1.5299 - yolo_output_2_loss: 2.1663 - val_loss: 24.4573 - val_yolo_output_0_loss: 5.6939 - val_yolo_output_1_loss: 5.0424 - val_yolo_output_2_loss: 2.6020 - lr: 0.0010
-Epoch 00009: early stopping
+Epoch 00008: saving model to checkpoints/yolov3_train_8.tf
+358/358 [==============================] - 334s 932ms/step - loss: 16.7991 - yolo_output_0_loss: 1.5778 - yolo_output_1_loss: 1.8891 - yolo_output_2_loss: 2.2678 - val_loss: 24.0688 - val_yolo_output_0_loss: 5.5626 - val_yolo_output_1_loss: 4.9282 - val_yolo_output_2_loss: 2.5046 - lr: 0.0010
+Epoch 00008: early stopping
+
+#+end_example
+
+Checkpoints created
+
+#+BEGIN_SRC sh :eval no-export :results output :var STAGE=remote-stage-directory  :var TAG=docker-tag-number :noweb yes
+<<ssh-ec2>> ls -ltr checkpoints
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+total 3243524
+-rw-r--r-- 1 root root     85875 27.4. 09:00 yolov3_train_1.tf.data-00000-of-00002
+-rw-r--r-- 1 root root 415043620 27.4. 09:00 yolov3_train_1.tf.data-00001-of-00002
+-rw-r--r-- 1 root root     35394 27.4. 09:00 yolov3_train_1.tf.index
+-rw-r--r-- 1 root root     85875 27.4. 09:06 yolov3_train_2.tf.data-00000-of-00002
+-rw-r--r-- 1 root root 415043620 27.4. 09:06 yolov3_train_2.tf.data-00001-of-00002
+-rw-r--r-- 1 root root     35394 27.4. 09:06 yolov3_train_2.tf.index
+-rw-r--r-- 1 root root     85875 27.4. 09:11 yolov3_train_3.tf.data-00000-of-00002
+-rw-r--r-- 1 root root 415043620 27.4. 09:11 yolov3_train_3.tf.data-00001-of-00002
+-rw-r--r-- 1 root root     35394 27.4. 09:11 yolov3_train_3.tf.index
+-rw-r--r-- 1 root root     85875 27.4. 09:17 yolov3_train_4.tf.data-00000-of-00002
+-rw-r--r-- 1 root root 415043620 27.4. 09:17 yolov3_train_4.tf.data-00001-of-00002
+-rw-r--r-- 1 root root     35394 27.4. 09:17 yolov3_train_4.tf.index
+-rw-r--r-- 1 root root     85875 27.4. 09:23 yolov3_train_5.tf.data-00000-of-00002
+-rw-r--r-- 1 root root 415043620 27.4. 09:23 yolov3_train_5.tf.data-00001-of-00002
+-rw-r--r-- 1 root root     35394 27.4. 09:23 yolov3_train_5.tf.index
+-rw-r--r-- 1 root root     85875 27.4. 09:28 yolov3_train_6.tf.data-00000-of-00002
+-rw-r--r-- 1 root root 415043620 27.4. 09:28 yolov3_train_6.tf.data-00001-of-00002
+-rw-r--r-- 1 root root     35394 27.4. 09:28 yolov3_train_6.tf.index
+-rw-r--r-- 1 root root     85875 27.4. 09:34 yolov3_train_7.tf.data-00000-of-00002
+-rw-r--r-- 1 root root     35394 27.4. 09:34 yolov3_train_7.tf.index
+-rw-r--r-- 1 root root 415043620 27.4. 09:34 yolov3_train_7.tf.data-00001-of-00002
+-rw-r--r-- 1 root root     85875 27.4. 09:39 yolov3_train_8.tf.data-00000-of-00002
+-rw-r--r-- 1 root root 415043620 27.4. 09:39 yolov3_train_8.tf.data-00001-of-00002
+-rw-r--r-- 1 root root     35394 27.4. 09:39 yolov3_train_8.tf.index
+-rw-r--r-- 1 root root        91 27.4. 09:39 checkpoint
 #+end_example
 
 
-** Detect after training session 1
+*** Session 1: tensorboard results
+
+[[file:tensorboard-early-stopping-epoch8.pdf]]
 
 
-#+BEGIN_SRC sh :eval no-export :results output :var STAGE=remote-stage-directory  :var TAG=docker-tag-number :noweb yes
-<<ssh-ec2>>   nvidia-docker run \
-       --user $(id -u) \
-       --workdir /yolov3-tf2 \
-       --volume $STAGE/checkpoints:/yolov3-tf2/checkpoints \
-       --volume $STAGE/data:/yolov3-tf2/voc.data \
-       --volume $STAGE/output:/yolov3-tf2/output \
-       marcus2002/yolov3-tf2-training:$TAG \
-       python detect.py \
-           	--classes ./data/voc2012.names \
-	        --num_classes 20 \
-                     --weights ./checkpoints/yolov3_train_9.tf \
-                     --image  ./data/street.jpg \
-                     --output ./output/trained1.jpg
-#+END_SRC
+*** Run detect using epoch 7 (=last successfull epoch)
 
-#+RESULTS:
+ #+BEGIN_SRC sh :eval no-export :results output :var STAGE=remote-stage-directory  :var TAG=docker-tag-number :noweb yes
+ <<ssh-ec2>>   nvidia-docker run \
+        --user $(id -u) \
+        --workdir /yolov3-tf2 \
+        --volume $STAGE/checkpoints:/yolov3-tf2/checkpoints \
+        --volume $STAGE/data:/yolov3-tf2/voc.data \
+        --volume $STAGE/output:/yolov3-tf2/output \
+        marcus2002/yolov3-tf2-training:$TAG \
+        python detect.py \
+           	 --classes ./data/voc2012.names \
+	         --num_classes 20 \
+                      --weights ./checkpoints/yolov3_train_7.tf \
+                      --image  ./data/street.jpg \
+                      --output ./output/early-stopping-epoch7.jpg
+ #+END_SRC
+
+ #+RESULTS:
+
+ [[/ssh:frankfurt:/home/ec2-user/output/early-stopping-epoch7.jpg]]  [[file:pics/early-stopping-epoch7.jpg][local early-stopping-epoch7.jpg]]
+
+Notes:
+- two bussess identified
+- no persons
 
 
-[[/ssh:frankfurt:/home/ec2-user/output/trained1.jpg]]
 
-#+BEGIN_SRC sh :eval no-export :results output :var STAGE=remote-stage-directory  :var TAG=docker-tag-number :noweb yes
-<<ssh-ec2>>   nvidia-docker run \
-       --user $(id -u) \
-       --workdir /yolov3-tf2 \
-       --volume $STAGE/checkpoints:/yolov3-tf2/checkpoints \
-       --volume $STAGE/data:/yolov3-tf2/voc.data \
-       --volume $STAGE/output:/yolov3-tf2/output \
-       marcus2002/yolov3-tf2-training:$TAG \
-       python detect.py \
-               --classes ./data/voc2012.names \
-               --num_classes 20 \
-               --weights ./checkpoints/yolov3_train_9.tf \
-               --tfrecord ./voc.data/voc2012_val.tfrecord \
-               --output ./output/trained2.jpg
-#+END_SRC
+*** Run detect using epoch 8 (=epoch interrepted)
 
-#+RESULTS:
+ #+BEGIN_SRC sh :eval no-export :results output :var STAGE=remote-stage-directory  :var TAG=docker-tag-number :noweb yes
+ <<ssh-ec2>>   nvidia-docker run \
+        --user $(id -u) \
+        --workdir /yolov3-tf2 \
+        --volume $STAGE/checkpoints:/yolov3-tf2/checkpoints \
+        --volume $STAGE/data:/yolov3-tf2/voc.data \
+        --volume $STAGE/output:/yolov3-tf2/output \
+        marcus2002/yolov3-tf2-training:$TAG \
+        python detect.py \
+           	 --classes ./data/voc2012.names \
+	         --num_classes 20 \
+                      --weights ./checkpoints/yolov3_train_8.tf \
+                      --image  ./data/street.jpg \
+                      --output ./output/early-stopping-epoch8.jpg
+ #+END_SRC
 
-[[/ssh:frankfurt:/home/ec2-user/output/trained2.jpg]]
+ #+RESULTS:
+
+ [[/ssh:frankfurt:/home/ec2-user/output/early-stopping-epoch8.jpg]]  [[file:pics/early-stopping-epoch8.jpg][local early-stopping-epoch8.jpg]]
+
+Notes:
+- no busses
+- two persons
+- one car
+
 
 
 ** Train session 2
 
-#+BEGIN_SRC sh :eval no-export :results output :var STAGE=remote-stage-directory  :var TAG=docker-tag-number :noweb yes
- <<ssh-ec2>>  echo sudo nvidia-docker run \
-       --workdir /yolov3-tf2 \
-       --volume $STAGE/data:/yolov3-tf2/voc.data \
-       --volume $STAGE/checkpoints:/yolov3-tf2/checkpoints \
-       --volume $STAGE/voc.meta:/yolov3-tf2/meta \
-       --volume $STAGE/output:/yolov3-tf2/output \
-       marcus2002/yolov3-tf2-training:$TAG \
-       python train.py \
-	--dataset ./voc.data/voc2012_train.tfrecord \
-	--val_dataset ./voc.data/voc2012_val.tfrecord \
-	--weights ./checkpoints/train_9.tf \
-	--classes ./data/voc2012.names \
-	--num_classes 20 \
-	--mode fit \
-        --transfer darknet \
-	--batch_size 16 \
-	--epochs 10 \
-        --learning_rate 1e-4 \
-	--weights_num_classes 20 
-#+END_SRC
-
-#+RESULTS:
-: sudo nvidia-docker run --workdir /yolov3-tf2 --volume /home/ec2-user/data:/yolov3-tf2/voc.data --volume /home/ec2-user/checkpoints:/yolov3-tf2/checkpoints --volume /home/ec2-user/voc.meta:/yolov3-tf2/meta --volume /home/ec2-user/output:/yolov3-tf2/output marcus2002/yolov3-tf2-training:1 python train.py --dataset ./voc.data/voc2012_train.tfrecord --val_dataset ./voc.data/voc2012_val.tfrecord --weights ./checkpoints/train_9.tf --classes ./data/voc2012.names --num_classes 20 --mode fit --transfer darknet --batch_size 16 --epochs 10 --learning_rate 1e-4 --weights_num_classes 20
+*** Prepare training session2
 
 
-** Detect after training session 2
+**** Copy =checkpoints/yolov3_train_EPOC.tf= weight to =data/cont_20.tf= for EPOC=8.
+
+ Show checkpoints directory
+ #+BEGIN_SRC sh :eval no-export :results output :var STAGE=remote-stage-directory :var TAG=docker-tag-number :noweb yes
+   <<ssh-ec2>> ls -ltr checkpoints 
+ #+END_SRC
+
+ #+RESULTS:
+ #+begin_example
+ total 3243524
+ -rw-r--r-- 1 root root     85875 27.4. 09:00 yolov3_train_1.tf.data-00000-of-00002
+ -rw-r--r-- 1 root root 415043620 27.4. 09:00 yolov3_train_1.tf.data-00001-of-00002
+ -rw-r--r-- 1 root root     35394 27.4. 09:00 yolov3_train_1.tf.index
+ -rw-r--r-- 1 root root     85875 27.4. 09:06 yolov3_train_2.tf.data-00000-of-00002
+ -rw-r--r-- 1 root root 415043620 27.4. 09:06 yolov3_train_2.tf.data-00001-of-00002
+ -rw-r--r-- 1 root root     35394 27.4. 09:06 yolov3_train_2.tf.index
+ -rw-r--r-- 1 root root     85875 27.4. 09:11 yolov3_train_3.tf.data-00000-of-00002
+ -rw-r--r-- 1 root root 415043620 27.4. 09:11 yolov3_train_3.tf.data-00001-of-00002
+ -rw-r--r-- 1 root root     35394 27.4. 09:11 yolov3_train_3.tf.index
+ -rw-r--r-- 1 root root     85875 27.4. 09:17 yolov3_train_4.tf.data-00000-of-00002
+ -rw-r--r-- 1 root root 415043620 27.4. 09:17 yolov3_train_4.tf.data-00001-of-00002
+ -rw-r--r-- 1 root root     35394 27.4. 09:17 yolov3_train_4.tf.index
+ -rw-r--r-- 1 root root     85875 27.4. 09:23 yolov3_train_5.tf.data-00000-of-00002
+ -rw-r--r-- 1 root root 415043620 27.4. 09:23 yolov3_train_5.tf.data-00001-of-00002
+ -rw-r--r-- 1 root root     35394 27.4. 09:23 yolov3_train_5.tf.index
+ -rw-r--r-- 1 root root     85875 27.4. 09:28 yolov3_train_6.tf.data-00000-of-00002
+ -rw-r--r-- 1 root root 415043620 27.4. 09:28 yolov3_train_6.tf.data-00001-of-00002
+ -rw-r--r-- 1 root root     35394 27.4. 09:28 yolov3_train_6.tf.index
+ -rw-r--r-- 1 root root     85875 27.4. 09:34 yolov3_train_7.tf.data-00000-of-00002
+ -rw-r--r-- 1 root root     35394 27.4. 09:34 yolov3_train_7.tf.index
+ -rw-r--r-- 1 root root 415043620 27.4. 09:34 yolov3_train_7.tf.data-00001-of-00002
+ -rw-r--r-- 1 root root     85875 27.4. 09:39 yolov3_train_8.tf.data-00000-of-00002
+ -rw-r--r-- 1 root root 415043620 27.4. 09:39 yolov3_train_8.tf.data-00001-of-00002
+ -rw-r--r-- 1 root root     35394 27.4. 09:39 yolov3_train_8.tf.index
+ -rw-r--r-- 1 root root        91 27.4. 09:39 checkpoint
+ #+end_example
+
+ #+BEGIN_SRC sh :eval no-export :results output :var STAGE=remote-stage-directory :var TAG=docker-tag-number :noweb yes
+   <<ssh-ec2>> cp checkpoints/yolov3_train_8.tf.data-00000-of-00002 data/cont_20.tf.data-00000-of-00002
+   <<ssh-ec2>> cp checkpoints/yolov3_train_8.tf.data-00001-of-00002 data/cont_20.tf.data-00001-of-00002
+   <<ssh-ec2>> cp checkpoints/yolov3_train_8.tf.index data/cont_20.tf.index
+ #+END_SRC
+
+ #+RESULTS:
+
+ Show =data= directory state
+
+ #+BEGIN_SRC sh :eval no-export :results output :var STAGE=remote-stage-directory :var TAG=docker-tag-number :noweb yes
+   <<ssh-ec2>> ls -ltr  data
+ #+END_SRC
+
+
+ #+RESULTS:
+ : total 1963488
+ : -rw-r--r-- 1 ec2-user ec2-user     24143 24.4. 06:27 yolov3-cnv.tf.index
+ : -rw-r--r-- 1 ec2-user ec2-user 248070167 24.4. 06:27 yolov3-cnv.tf.data-00000-of-00001
+ : -rw-r--r-- 1 ec2-user ec2-user 668674204 24.4. 06:47 voc2012_train.tfrecord
+ : -rw-r--r-- 1 ec2-user ec2-user 678662716 24.4. 06:47 voc2012_val.tfrecord
+ : -rw-r--r-- 1 ec2-user ec2-user     85875 27.4. 10:15 cont_20.tf.data-00000-of-00002
+ : -rw-r--r-- 1 ec2-user ec2-user 415043620 27.4. 10:15 cont_20.tf.data-00001-of-00002
+ : -rw-r--r-- 1 ec2-user ec2-user     35394 27.4. 10:15 cont_20.tf.index
+
+ #+END_SRC
+
+ #+RESULTS:
+
+
+****  Cleanup checkpoints
+
+ #+BEGIN_SRC sh :eval no-export :results output :var STAGE=remote-stage-directory :var TAG=docker-tag-number :noweb yes
+   <<ssh-ec2>> rm -f $STAGE/checkpoints/* $STAGE/logs/*
+   <<ssh-ec2>> ls -ltr $STAGE/checkpoints $STAGE/data $STAGE/logs
+ #+END_SRC
+
+ #+RESULTS:
+ #+begin_example
+ /home/ec2-user/logs:
+ total 0
+ drwxr-xr-x 3 root root 148 27.4. 08:55 train
+ drwxr-xr-x 2 root root  68 27.4. 09:00 validation
+
+ /home/ec2-user/data:
+ total 1963488
+ -rw-r--r-- 1 ec2-user ec2-user     24143 24.4. 06:27 yolov3-cnv.tf.index
+ -rw-r--r-- 1 ec2-user ec2-user 248070167 24.4. 06:27 yolov3-cnv.tf.data-00000-of-00001
+ -rw-r--r-- 1 ec2-user ec2-user 668674204 24.4. 06:47 voc2012_train.tfrecord
+ -rw-r--r-- 1 ec2-user ec2-user 678662716 24.4. 06:47 voc2012_val.tfrecord
+ -rw-r--r-- 1 ec2-user ec2-user     85875 27.4. 10:15 cont_20.tf.data-00000-of-00002
+ -rw-r--r-- 1 ec2-user ec2-user 415043620 27.4. 10:15 cont_20.tf.data-00001-of-00002
+ -rw-r--r-- 1 ec2-user ec2-user     35394 27.4. 10:15 cont_20.tf.index
+
+ /home/ec2-user/checkpoints:
+ total 0
+ #+end_example
+
+
+*** Session 2: continue using fine-tuning with weigth count 20
+
+ #+BEGIN_SRC sh :eval no-export :results output :var STAGE=remote-stage-directory  :var TAG=docker-tag-number :noweb yes
+  <<ssh-ec2>>  echo sudo nvidia-docker run \
+        --workdir /yolov3-tf2 \
+        --volume $STAGE/data:/yolov3-tf2/voc.data \
+        --volume $STAGE/checkpoints:/yolov3-tf2/checkpoints \
+        --volume $STAGE/voc.meta:/yolov3-tf2/meta \
+        --volume $STAGE/output:/yolov3-tf2/output \
+        --volume $STAGE/logs:/yolov3-tf2/logs \
+        marcus2002/yolov3-tf2-training:$TAG \
+        python train.py \
+	 --dataset ./voc.data/voc2012_train.tfrecord \
+	 --val_dataset ./voc.data/voc2012_val.tfrecord \
+	 --weights ./voc.data/cont_20.tf \
+	 --classes ./data/voc2012.names \
+	 --num_classes 20 \
+	 --mode fit \
+         --transfer fine_tune \
+	 --batch_size 16 \
+	 --epochs 10 \
+	 --weights_num_classes 20 
+ #+END_SRC
+
+ #+RESULTS:
+ : sudo nvidia-docker run --workdir /yolov3-tf2 --volume /home/ec2-user/data:/yolov3-tf2/voc.data --volume /home/ec2-user/checkpoints:/yolov3-tf2/checkpoints --volume /home/ec2-user/voc.meta:/yolov3-tf2/meta --volume /home/ec2-user/output:/yolov3-tf2/output --volume /home/ec2-user/logs:/yolov3-tf2/logs marcus2002/yolov3-tf2-training:1 python train.py --dataset ./voc.data/voc2012_train.tfrecord --val_dataset ./voc.data/voc2012_val.tfrecord --weights ./voc.data/cont_20.tf --classes ./data/voc2012.names --num_classes 20 --mode fit --transfer fine_tune --batch_size 16 --epochs 10 --weights_num_classes 20
+
+
+*** End of  training session 2 =early stopping=
 
 #+BEGIN_SRC sh :eval no-export :results output :noweb yes
 <<ssh-ec2>>   ls -ltr checkpoints
@@ -943,43 +963,27 @@ Epoch 00009: early stopping
 
 #+RESULTS:
 #+begin_example
-total 4459844
--rw-r--r-- 1 ec2-user ec2-user     85875 24.4. 08:58 train_9.tf.data-00000-of-00002
--rw-r--r-- 1 ec2-user ec2-user     35394 24.4. 08:58 train_9.tf.index
--rw-r--r-- 1 ec2-user ec2-user 415043620 24.4. 08:58 train_9.tf.data-00001-of-00002
--rw-r--r-- 1 root     root         85875 24.4. 09:19 yolov3_train_1.tf.data-00000-of-00002
--rw-r--r-- 1 root     root     415043620 24.4. 09:19 yolov3_train_1.tf.data-00001-of-00002
--rw-r--r-- 1 root     root         35394 24.4. 09:19 yolov3_train_1.tf.index
--rw-r--r-- 1 root     root         85875 24.4. 09:25 yolov3_train_2.tf.data-00000-of-00002
--rw-r--r-- 1 root     root     415043620 24.4. 09:25 yolov3_train_2.tf.data-00001-of-00002
--rw-r--r-- 1 root     root         35394 24.4. 09:25 yolov3_train_2.tf.index
--rw-r--r-- 1 root     root         85875 24.4. 09:31 yolov3_train_3.tf.data-00000-of-00002
--rw-r--r-- 1 root     root         35394 24.4. 09:31 yolov3_train_3.tf.index
--rw-r--r-- 1 root     root     415043620 24.4. 09:31 yolov3_train_3.tf.data-00001-of-00002
--rw-r--r-- 1 root     root         85875 24.4. 09:36 yolov3_train_4.tf.data-00000-of-00002
--rw-r--r-- 1 root     root     415043620 24.4. 09:36 yolov3_train_4.tf.data-00001-of-00002
--rw-r--r-- 1 root     root         35394 24.4. 09:36 yolov3_train_4.tf.index
--rw-r--r-- 1 root     root         85875 24.4. 09:42 yolov3_train_5.tf.data-00000-of-00002
--rw-r--r-- 1 root     root     415043620 24.4. 09:42 yolov3_train_5.tf.data-00001-of-00002
--rw-r--r-- 1 root     root         35394 24.4. 09:42 yolov3_train_5.tf.index
--rw-r--r-- 1 root     root         85875 24.4. 09:48 yolov3_train_6.tf.data-00000-of-00002
--rw-r--r-- 1 root     root         35394 24.4. 09:48 yolov3_train_6.tf.index
--rw-r--r-- 1 root     root     415043620 24.4. 09:48 yolov3_train_6.tf.data-00001-of-00002
--rw-r--r-- 1 root     root         85875 24.4. 09:54 yolov3_train_7.tf.data-00000-of-00002
--rw-r--r-- 1 root     root     415043620 24.4. 09:54 yolov3_train_7.tf.data-00001-of-00002
--rw-r--r-- 1 root     root         35394 24.4. 09:54 yolov3_train_7.tf.index
--rw-r--r-- 1 root     root         85875 24.4. 09:59 yolov3_train_8.tf.data-00000-of-00002
--rw-r--r-- 1 root     root     415043620 24.4. 09:59 yolov3_train_8.tf.data-00001-of-00002
--rw-r--r-- 1 root     root         35394 24.4. 09:59 yolov3_train_8.tf.index
--rw-r--r-- 1 root     root         85875 24.4. 10:05 yolov3_train_9.tf.data-00000-of-00002
--rw-r--r-- 1 root     root     415043620 24.4. 10:05 yolov3_train_9.tf.data-00001-of-00002
--rw-r--r-- 1 root     root         35394 24.4. 10:05 yolov3_train_9.tf.index
--rw-r--r-- 1 root     root         85875 24.4. 10:11 yolov3_train_10.tf.data-00000-of-00002
--rw-r--r-- 1 root     root     415043620 24.4. 10:11 yolov3_train_10.tf.data-00001-of-00002
--rw-r--r-- 1 root     root         35394 24.4. 10:11 yolov3_train_10.tf.index
--rw-r--r-- 1 root     root            93 24.4. 10:11 checkpoint
+total 1621764
+-rw-r--r-- 1 root root     85875 27.4. 10:29 yolov3_train_1.tf.data-00000-of-00002
+-rw-r--r-- 1 root root 415043620 27.4. 10:29 yolov3_train_1.tf.data-00001-of-00002
+-rw-r--r-- 1 root root     35394 27.4. 10:29 yolov3_train_1.tf.index
+-rw-r--r-- 1 root root     85875 27.4. 10:35 yolov3_train_2.tf.data-00000-of-00002
+-rw-r--r-- 1 root root 415043620 27.4. 10:35 yolov3_train_2.tf.data-00001-of-00002
+-rw-r--r-- 1 root root     35394 27.4. 10:35 yolov3_train_2.tf.index
+-rw-r--r-- 1 root root     85875 27.4. 10:40 yolov3_train_3.tf.data-00000-of-00002
+-rw-r--r-- 1 root root 415043620 27.4. 10:40 yolov3_train_3.tf.data-00001-of-00002
+-rw-r--r-- 1 root root     35394 27.4. 10:40 yolov3_train_3.tf.index
+-rw-r--r-- 1 root root     85875 27.4. 10:46 yolov3_train_4.tf.data-00000-of-00002
+-rw-r--r-- 1 root root 415043620 27.4. 10:46 yolov3_train_4.tf.data-00001-of-00002
+-rw-r--r-- 1 root root     35394 27.4. 10:46 yolov3_train_4.tf.index
+-rw-r--r-- 1 root root        91 27.4. 10:46 checkpoint
 #+end_example
 
+
+
+*** Detect after training session 2
+
+**** Detect using session 2/epoch 3
 
 #+BEGIN_SRC sh :eval no-export :results output :var STAGE=remote-stage-directory  :var TAG=docker-tag-number :noweb yes
 <<ssh-ec2>>   nvidia-docker run \
@@ -992,15 +996,25 @@ total 4459844
        python detect.py \
            	--classes ./data/voc2012.names \
 	        --num_classes 20 \
-                     --weights ./checkpoints/yolov3_train_10.tf \
+                     --weights ./checkpoints/yolov3_train_3.tf \
                      --image  ./data/street.jpg \
-                     --output ./output/trained2_1.jpg
+                     --output ./output/cont_20_epoch3.jpg
 #+END_SRC
 
 #+RESULTS:
 
+Remote link 
+[[/ssh:frankfurt:/home/ec2-user/output/cont_20_epoch3.jpg][remote cont_20_epoch3.jpg]] [[file:pics/cont_20_epoch3.jpg][local pics/cont_20_epoch3.jpg]]
 
-[[/ssh:frankfurt:/home/ec2-user/output/trained1.jpg]]
+
+
+Notes:
+- both busses found
+- car found
+- three persons found, several persons missed
+
+
+**** Detect using session 2/epoch 4
 
 #+BEGIN_SRC sh :eval no-export :results output :var STAGE=remote-stage-directory  :var TAG=docker-tag-number :noweb yes
 <<ssh-ec2>>   nvidia-docker run \
@@ -1011,16 +1025,165 @@ total 4459844
        --volume $STAGE/output:/yolov3-tf2/output \
        marcus2002/yolov3-tf2-training:$TAG \
        python detect.py \
-               --classes ./data/voc2012.names \
-               --num_classes 20 \
-               --weights ./checkpoints/yolov3_train_10.tf \
-               --tfrecord ./voc.data/voc2012_val.tfrecord \
-               --output ./output/trained2_2.jpg
+           	--classes ./data/voc2012.names \
+	        --num_classes 20 \
+                     --weights ./checkpoints/yolov3_train_4.tf \
+                     --image  ./data/street.jpg \
+                     --output ./output/cont_20_epoch4.jpg
 #+END_SRC
 
 #+RESULTS:
 
-[[/ssh:frankfurt:/home/ec2-user/output/trained2_2.jpg]]
+Notes:
+- one bus found, one bus and car los
+- two persons found, person lost
+- worse than epoch 3
+
+[[/ssh:frankfurt:/home/ec2-user/output/cont_20_epoch4.jpg]]   [[file:pics/cont_20_epoch4.jpg][local pics/cont_20_epoch4.jpg]]
+
+
+
+** Copy trained weights
+
+*** Copy from session1 weights =data/cont_20.tf.*= to local =$STAGE/data/=
+
+#+BEGIN_SRC sh :eval no-export :results output :var STAGE=stage-directory
+scp frankfurt:data/cont_20.tf.* $STAGE/data/
+#+END_SRC
+
+#+RESULTS:
+
+Show files in local =$STAGE/data= -directory 
+
+#+BEGIN_SRC sh :eval no-export :results output :var STAGE=stage-directory
+ls -ltr $STAGE/data
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+total 3499236
+-rw-r--r-- 1 root root  248070167 huhti 24 09:27 yolov3-cnv.tf.data-00000-of-00001
+-rw-r--r-- 1 root root      24143 huhti 24 09:27 yolov3-cnv.tf.index
+-rw-r--r-- 1 root root         83 huhti 24 09:27 checkpoint
+-rw-r--r-- 1 jj   root  668674204 huhti 24 09:47 voc2012_train.tfrecord
+-rw-r--r-- 1 jj   root  678662716 huhti 24 09:47 voc2012_val.tfrecord
+-rw-rw-r-- 1 jj   jj   1572578623 huhti 27 11:30 yolov3.data.tgz
+-rw-r--r-- 1 jj   jj        85875 huhti 27 13:27 cont_20.tf.data-00000-of-00002
+-rw-r--r-- 1 jj   jj    415043620 huhti 27 13:28 cont_20.tf.data-00001-of-00002
+-rw-r--r-- 1 jj   jj        35394 huhti 27 13:28 cont_20.tf.index
+#+end_example
+
+
+Use =cont_20.tf= on local machine. *Notice* using non default num_classes and classes
+
+#+name: yolov3-tf2-detect
+#+BEGIN_SRC sh :eval no-export :results output :var STAGE=stage-directory :var TAG=docker-tag-number
+  docker run \
+         --user $(id -u) \
+         --workdir /yolov3-tf2 \
+         --volume $STAGE/data:/yolov3-tf2/voc.data \
+         --volume $STAGE/output:/yolov3-tf2/output \
+         marcus2002/yolov3-tf2-training:$TAG \
+         python detect.py \
+              --num_classes 20 \
+              --classes ./data/voc2012.names \
+              --weights ./voc.data/cont_20.tf \
+              --image ./data/street.jpg \
+              --output ./output/cont_20-street.jpg
+#+END_SRC
+
+#+RESULTS: yolov3-tf2-detect
+
+[[~/stage/yolov3-tf2/output/cont_20-street.jpg]]
+
+
+*** Copy session2/epoch 3 weights
+
+#+BEGIN_SRC sh :eval no-export :results output :var STAGE=stage-directory
+scp frankfurt:checkpoints/yolov3_train_3.tf.* $STAGE/weights
+ls -ltr $STAGE/weights
+#+END_SRC
+
+#+RESULTS:
+: total 647636
+: -rw-rw-r-- 1 jj jj 248007048 huhti  8 15:50 yolov3.weights
+: -rw-r--r-- 1 jj jj     85875 huhti 27 14:03 yolov3_train_3.tf.data-00000-of-00002
+: -rw-r--r-- 1 jj jj 415043620 huhti 27 14:04 yolov3_train_3.tf.data-00001-of-00002
+: -rw-r--r-- 1 jj jj     35394 huhti 27 14:04 yolov3_train_3.tf.index
+
+
+
+** Running detect.py locally using darknet  weights
+
+#+BEGIN_SRC sh :eval no-export :results output :var STAGE=stage-directory :var TAG=docker-tag-number
+  docker run \
+       --user $(id -u) \
+       --workdir /yolov3-tf2 \
+       --volume $STAGE/data:/yolov3-tf2/voc.data \
+       --volume $(pwd)/pics:/yolov3-tf2/output \
+       marcus2002/yolov3-tf2-training:$TAG \
+       python detect.py \
+                     --weights ./voc.data/yolov3-cnv.tf \
+                     --image ./data/street.jpg \
+                     --output ./output/darknet-street.jpg
+#+END_SRC
+
+#+RESULTS:
+   
+[[file:pics/darknet-street.jpg]]
+
+
+* *IMPORTANT* Delete stack =stakki1=
+
+#+BEGIN_SRC sh :eval no-export :results output
+aws cloudformation delete-stack --stack-name stakki1
+#+END_SRC
+
+#+RESULTS:
+
+*Ensure nothing there!!*
+
+#+BEGIN_SRC sh :eval no-export :results output
+aws cloudformation describe-stacks
+aws ec2 describe-instances | jq '.[][].Instances[] |  { dns: .PublicDnsName, ami: .ImageId,  InstanceId: .InstanceId, state: .State }'
+#+END_SRC
+
+
+#+RESULTS:
+#+begin_example
+{
+    "Stacks": [
+        {
+            "StackId": "arn:aws:cloudformation:eu-central-1:025876341083:stack/stakki1/227d0230-885f-11ea-8a06-0264b9b54242",
+            "StackName": "stakki1",
+            "CreationTime": "2020-04-27T08:14:37.108000+00:00",
+            "DeletionTime": "2020-04-27T11:04:36.967000+00:00",
+            "RollbackConfiguration": {},
+            "StackStatus": "DELETE_IN_PROGRESS",
+            "DisableRollback": true,
+            "NotificationARNs": [],
+            "Capabilities": [
+                "CAPABILITY_IAM"
+            ],
+            "Tags": [],
+            "DriftInformation": {
+                "StackDriftStatus": "NOT_CHECKED"
+            }
+        }
+    ]
+}
+{
+  "dns": "",
+  "ami": "ami-0e29cd2e136f11293",
+  "InstanceId": "i-0ee6b2c3f2811ac1d",
+  "state": {
+    "Code": 48,
+    "Name": "terminated"
+  }
+}
+#+end_example
+
+
 
 
 
