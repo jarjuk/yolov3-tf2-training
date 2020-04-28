@@ -114,7 +114,8 @@ Create Docker container for [[https://github.com/zzh8829/yolov3-tf2][YoloV3 algo
 
 #+end_example
 
-First session was interrupted by /early stopping/ error on epoch 8.
+First session was interrupted by /early stopping/ error on
+epoch 8. Ref [[file:tensorboard-early-stopping-epoch8.pdf][Tensorboard report]] 
 
 Second training session was launched using the command below
 
