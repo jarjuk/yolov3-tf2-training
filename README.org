@@ -141,15 +141,15 @@ epoch 4.
 
 Results are summarized in the table below:
 
-|              |                           Session 1 |                       Session 1 |                    Session 2 |                    Session 2 |                     Original |
-|              |                             Epoch 7 |                         Epoch 8 |                    Epoch   3 |                      Epoch 4 |                      darknet |
-|--------------+-------------------------------------+---------------------------------+------------------------------+------------------------------+------------------------------|
-| Image        | [[file:pics/early-stopping-epoch7.jpg]] | [[file:pics/early-stopping-epoch8.jpg][local early-stopping-epoch8.jpg]] | [[file:pics/cont_20_epoch3.jpg]] | [[file:pics/cont_20_epoch4.jpg]] | file:pics/darknet-street.jpg |
-|--------------+-------------------------------------+---------------------------------+------------------------------+------------------------------+------------------------------|
-| # of busses  |                                   2 |                               0 |                            2 |                            1 |                            2 |
-| # of cars    |                                   0 |                               1 |                            1 |                            0 |                            1 |
-| # of persons |                                   0 |                               2 |                            3 |                            2 |                            7 |
-|--------------+-------------------------------------+---------------------------------+------------------------------+------------------------------+------------------------------|
+|              |                           Session 1 |                           Session 1 |                    Session 2 |                    Session 2 |                     Original |
+|              |                             Epoch 7 |                             Epoch 8 |                    Epoch   3 |                      Epoch 4 |                      darknet |
+|--------------+-------------------------------------+-------------------------------------+------------------------------+------------------------------+------------------------------|
+| Image        | [[file:pics/early-stopping-epoch7.jpg]] | [[file:pics/early-stopping-epoch8.jpg]] | [[file:pics/cont_20_epoch3.jpg]] | [[file:pics/cont_20_epoch4.jpg]] | [[file:pics/darknet-street.jpg]] |
+|--------------+-------------------------------------+-------------------------------------+------------------------------+------------------------------+------------------------------|
+| # of busses  |                                   2 |                                   0 |                            2 |                            1 |                            2 |
+| # of cars    |                                   0 |                                   1 |                            1 |                            0 |                            1 |
+| # of persons |                                   0 |                                   2 |                            3 |                            2 |                            7 |
+|--------------+-------------------------------------+-------------------------------------+------------------------------+------------------------------+------------------------------|
 
 Session 2/Epoch 3 (=last fully exececuted epoch in session 2) gave
 best detection result, but performed poorer that detection using
