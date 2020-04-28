@@ -36,7 +36,7 @@ Create Docker container for [[https://github.com/zzh8829/yolov3-tf2][YoloV3 algo
        dockerLocal --> voc2012.tf : convert from VOC2012 image set
        dockerLocal --> darknet.tf : convert original darknet weigths
  
-       agent browser
+       agent "Tensorboard\nconsole" as browser <<Browser>>
 
     }
 
@@ -59,7 +59,7 @@ Create Docker container for [[https://github.com/zzh8829/yolov3-tf2][YoloV3 algo
     }
 
 
-    docker.org ..> dockerLocal : scripts for building preparing local stage
+    docker.org ..> dockerLocal : scripts for creating docker && \n preparing local stage
     aws.org ..> aws : scripts controlling 
 
     darknet.tf --> dockerAws : copy initial weights
