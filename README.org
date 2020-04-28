@@ -164,7 +164,10 @@ Results are summarized in the table below:
 
 Session 2/Epoch 3 (=last fully exececuted epoch in session 2) gave
 best detection result, but performed poorer that detection using
-original darknet weights.
+original darknet weights. 
+
+Note: Traffic lights are not included in vo2012 classes, and they are
+marked with NA for voc2012 detection runs above.
 
 
 
