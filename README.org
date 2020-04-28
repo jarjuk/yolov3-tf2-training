@@ -9,6 +9,7 @@ Create Docker container for [[https://github.com/zzh8829/yolov3-tf2][YoloV3 algo
 :CONTENTS:
 - [[#architecture][Architecture]]
 - [[#training-sessions][Training sessions]]
+- [[#some-benchmark-information][Some benchmark information]]
 - [[#training-session-results][Training session results]]
 - [[#tools-and-versions][Tools and versions]]
 :END:
@@ -138,6 +139,14 @@ EPOC8 checkpoint data, and uses transfer paramater =fine_tune=. Also
 this second session was interrupted by an /early stopping/ error on
 epoch 4.
 
+
+** Some benchmark results
+
+Training took approximately 5 min/epoch with 8 epochs for session 1
+and 4 epochs for session 2. Totally 12*5 min ~ 1h on g4dn.xlarge EC2
+instance.
+
+
 ** Training session results
 
 Results are summarized in the table below:
@@ -155,6 +164,7 @@ Results are summarized in the table below:
 Session 2/Epoch 3 (=last fully exececuted epoch in session 2) gave
 best detection result, but performed poorer that detection using
 original darknet weights.
+
 
 
 ** Tools and versions
