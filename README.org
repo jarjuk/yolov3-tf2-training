@@ -165,7 +165,7 @@ original darknet weights.
  - bash: scripts
 
  Tool versions:
- #+BEGIN_SRC sh :eval no-export :results output
+ #+BEGIN_SRC sh :eval no-export :results output :exports results
  docker --version
  aws --version
  jq --version
