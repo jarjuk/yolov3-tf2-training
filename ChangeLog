@@ -1,7 +1,7 @@
 2020-04-27  jj  <jj@santtu>
 
 	* README.org (training): use logs directory, added tensorboard
-	usage
+	usage, clenaup
 
 2020-04-24  jj  <jj@santtu>
 

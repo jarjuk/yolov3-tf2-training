@@ -1,0 +1,1190 @@
+* Configuration
+
+Tag number of =marcus2002/yolov3-tf2-training= Docker
+#+name: docker-tag-number
+#+BEGIN_SRC R
+1
+#+END_SRC
+
+Local stage
+
+#+name: stage-directory
+#+BEGIN_SRC R
+"/home/jj/stage/yolov3-tf2"
+#+END_SRC
+
+Remote stage:
+#+name: remote-stage-directory
+#+BEGIN_SRC R
+"/home/ec2-user"
+#+END_SRC
+
+
+** Command shortcuts
+  #+name:running-ecs2
+  #+BEGIN_SRC sh :eval no-export :results output
+  aws ec2 describe-instances | jq '.[][].Instances[] | select( .State.Name == "running" ) | { dns: .PublicDnsName, ami: .ImageId,  InstanceId: .InstanceId, state: .State }'
+  #+END_SRC
+
+  #+name: ssh-ec2
+  #+BEGIN_SRC sh :eval no-export :results output
+  ssh -i ~/.ssh/marcus-frankfurt/marcus-franfurt.pem ec2-user@$(aws ec2 describe-instances | jq -r '.[][].Instances[0] | select( .State.Name == "running" ) |  .PublicDnsName')
+  #+END_SRC
+
+
+
+* Starup  EC2 instances
+
+** Create stack =ec2.g4dn.amazon-dl.yaml=
+
+ - Amazon deep learning ami on g4dn.xlarge
+ - With access right to list s3 bucket
+ - With Amanazon Linux 2 AMIn in frankfurt zone
+
+ #+BEGIN_SRC yaml :tangle tmp/ec2.g4dn.amazon-dl.yaml
+   # Do not edit. Tangled from README.org
+   Resources:
+     InstanceSecurityGroup:
+       DeletionPolicy: Delete
+       Type: AWS::EC2::SecurityGroup
+       Properties:
+         GroupDescription: Enable SSH access via port 22
+         SecurityGroupIngress:
+         - IpProtocol: tcp
+           FromPort: 22
+           ToPort: 22
+           CidrIp: 0.0.0.0/0  
+     S3BucketsInstanceProfile:
+       Type: AWS::IAM::InstanceProfile
+       Properties:
+         Path: "/"
+         Roles:
+         - Ref: S3BucketsRole
+     ListS3BucketsPolicy:
+       Type: AWS::IAM::Policy
+       Properties:
+         PolicyName: ListS3BucketsPolicy
+         PolicyDocument:
+           Statement:
+           - Effect: Allow
+             Action:
+             - s3:List*
+             Resource: "*"
+         Roles:
+         - Ref: S3BucketsRole
+     RWS3BucketsPolicy:
+       Type: AWS::IAM::Policy
+       Properties:
+         PolicyName: RWS3BucketsPolicy
+         PolicyDocument:
+           Statement:
+           - Effect: Allow
+             Action:
+             - s3:List*
+             - s3:Put*
+             - s3:Get*
+             - s3:Delete*
+             Resource: "*"
+         Roles:
+         - Ref: S3BucketsRole
+     S3BucketsRole:
+       Type: AWS::IAM::Role
+       Properties:
+         AssumeRolePolicyDocument:
+           Version: '2012-10-17'
+           Statement:
+           - Effect: Allow
+             Principal:
+               Service:
+               - ec2.amazonaws.com
+             Action:
+             - sts:AssumeRole
+         Path: "/"
+     EC2Instance:
+         DeletionPolicy: Delete
+         Type: AWS::EC2::Instance
+         Properties:
+             # Ubuntu AMI found in console
+             # ImageId: ami-0b7937aeb16a7eb94
+             # Amazon Linux AMI
+             # ImageId: ami-0b7a46b4bd694e8a6
+             # Amazon AMI (amzn-ami-hvm-2018.03.0.20200318.2-x86_64-gp2 ())
+             ## ImageId: ami-0c5254b956817b326
+             ## Deep Learning AMI (Amazon Linux 2) Version 27.0 - ami-0e29cd2e136f11293
+             # ImageId: ami-0e29cd2e136f11293
+             # Deep Learning AMI (Amazon Linux 2) Version 27.0 - 
+             ImageId: ami-0e29cd2e136f11293
+             KeyName: marcus-franfurt
+             InstanceType: g4dn.xlarge
+             # BlockDeviceMappings:
+             #  - DeviceName: "/dev/xvda"
+             #    Ebs:
+             #      VolumeSize: 30
+             IamInstanceProfile:
+               Ref: S3BucketsInstanceProfile
+             SecurityGroupIds:
+               - !Ref InstanceSecurityGroup
+             UserData:
+                 Fn::Base64: 
+                   Fn::Sub:
+                     -  |
+                        #!/bin/bash -xe
+                        echo Starting "${maailma}"> /tmp/starting.txt
+                        # sudo yum update -y
+                        echo yum updated >> /tmp/starting.txt
+                     - 
+                        maailma: Stack ec2.t3.amazon.docker.yaml
+ #+END_SRC
+
+
+
+ #+BEGIN_SRC sh :eval no-export :results output
+ aws cloudformation create-stack --stack-name stakki1 --capabilities CAPABILITY_IAM  --disable-rollback --template-body file://tmp/ec2.g4dn.amazon-dl.yaml
+ #+END_SRC
+
+ #+RESULTS:
+ : {
+ :     "StackId": "arn:aws:cloudformation:eu-central-1:025876341083:stack/stakki1/227d0230-885f-11ea-8a06-0264b9b54242"
+ : }
+
+
+
+
+
+
+** List stacks
+
+Short list
+
+#+BEGIN_SRC sh :eval no-export :results output
+aws cloudformation describe-stacks | jq '.[][]| { StackName: .StackName, StackStatus: .StackStatus}' 
+#+END_SRC
+
+#+RESULTS:
+: {
+:   "StackName": "stakki1",
+:   "StackStatus": "CREATE_COMPLETE"
+: }
+
+
+
+Full stack list
+
+#+BEGIN_SRC sh :eval no-export :results output
+aws cloudformation describe-stacks
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+{
+    "Stacks": [
+        {
+            "StackId": "arn:aws:cloudformation:eu-central-1:025876341083:stack/stakki1/e1635390-85fb-11ea-b036-0ac41be8cd2e",
+            "StackName": "stakki1",
+            "CreationTime": "2020-04-24T07:19:05.380000+00:00",
+            "RollbackConfiguration": {},
+            "StackStatus": "CREATE_IN_PROGRESS",
+            "DisableRollback": true,
+            "NotificationARNs": [],
+            "Capabilities": [
+                "CAPABILITY_IAM"
+            ],
+            "Tags": [],
+            "DriftInformation": {
+                "StackDriftStatus": "NOT_CHECKED"
+            }
+        },
+        {
+            "StackId": "arn:aws:cloudformation:eu-central-1:025876341083:stack/bukee/5654e910-82dd-11ea-a565-067c398aa192",
+            "StackName": "bukee",
+            "CreationTime": "2020-04-20T08:02:53.650000+00:00",
+            "RollbackConfiguration": {},
+            "StackStatus": "CREATE_COMPLETE",
+            "DisableRollback": true,
+            "NotificationARNs": [],
+            "Capabilities": [
+                "CAPABILITY_IAM"
+            ],
+            "Tags": [],
+            "DriftInformation": {
+                "StackDriftStatus": "NOT_CHECKED"
+            }
+        }
+    ]
+}
+#+end_example
+
+#+BEGIN_SRC sh :eval no-export :results output
+aws ec2 describe-instances
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+{
+    "Reservations": [
+        {
+            "Groups": [],
+            "Instances": [
+                {
+                    "AmiLaunchIndex": 0,
+                    "ImageId": "ami-0e29cd2e136f11293",
+                    "InstanceId": "i-08ba89c5467b7e451",
+                    "InstanceType": "g4dn.xlarge",
+                    "KeyName": "marcus-franfurt",
+                    "LaunchTime": "2020-04-23T09:17:55+00:00",
+                    "Monitoring": {
+                        "State": "disabled"
+                    },
+                    "Placement": {
+                        "AvailabilityZone": "eu-central-1b",
+                        "GroupName": "",
+                        "Tenancy": "default"
+                    },
+                    "PrivateDnsName": "ip-172-31-40-56.eu-central-1.compute.internal",
+                    "PrivateIpAddress": "172.31.40.56",
+                    "ProductCodes": [],
+                    "PublicDnsName": "ec2-3-120-139-106.eu-central-1.compute.amazonaws.com",
+                    "PublicIpAddress": "3.120.139.106",
+                    "State": {
+                        "Code": 16,
+                        "Name": "running"
+                    },
+                    "StateTransitionReason": "",
+                    "SubnetId": "subnet-fcc23780",
+                    "VpcId": "vpc-e71bcc8d",
+                    "Architecture": "x86_64",
+                    "BlockDeviceMappings": [
+                        {
+                            "DeviceName": "/dev/xvda",
+                            "Ebs": {
+                                "AttachTime": "2020-04-23T09:17:55+00:00",
+                                "DeleteOnTermination": true,
+                                "Status": "attached",
+                                "VolumeId": "vol-038180859fe74895c"
+                            }
+                        }
+                    ],
+                    "ClientToken": "stakk-EC2In-S9TBIJ2GRRBN",
+                    "EbsOptimized": false,
+                    "EnaSupport": true,
+                    "Hypervisor": "xen",
+                    "IamInstanceProfile": {
+                        "Arn": "arn:aws:iam::025876341083:instance-profile/stakki1-S3BucketsInstanceProfile-2ITVXNE78M0H",
+                        "Id": "AIPAQMBSZUFN2FFTFCF52"
+                    },
+                    "NetworkInterfaces": [
+                        {
+                            "Association": {
+                                "IpOwnerId": "amazon",
+                                "PublicDnsName": "ec2-3-120-139-106.eu-central-1.compute.amazonaws.com",
+                                "PublicIp": "3.120.139.106"
+                            },
+                            "Attachment": {
+                                "AttachTime": "2020-04-23T09:17:55+00:00",
+                                "AttachmentId": "eni-attach-0b1ff98896813ddd4",
+                                "DeleteOnTermination": true,
+                                "DeviceIndex": 0,
+                                "Status": "attached"
+                            },
+                            "Description": "",
+                            "Groups": [
+                                {
+                                    "GroupName": "stakki1-InstanceSecurityGroup-EYTXD5UJGZZJ",
+                                    "GroupId": "sg-0e85dedd601fae854"
+                                }
+                            ],
+                            "Ipv6Addresses": [],
+                            "MacAddress": "06:d5:6d:d7:61:30",
+                            "NetworkInterfaceId": "eni-0d2b3682511050432",
+                            "OwnerId": "025876341083",
+                            "PrivateDnsName": "ip-172-31-40-56.eu-central-1.compute.internal",
+                            "PrivateIpAddress": "172.31.40.56",
+                            "PrivateIpAddresses": [
+                                {
+                                    "Association": {
+                                        "IpOwnerId": "amazon",
+                                        "PublicDnsName": "ec2-3-120-139-106.eu-central-1.compute.amazonaws.com",
+                                        "PublicIp": "3.120.139.106"
+                                    },
+                                    "Primary": true,
+                                    "PrivateDnsName": "ip-172-31-40-56.eu-central-1.compute.internal",
+                                    "PrivateIpAddress": "172.31.40.56"
+                                }
+                            ],
+                            "SourceDestCheck": true,
+                            "Status": "in-use",
+                            "SubnetId": "subnet-fcc23780",
+                            "VpcId": "vpc-e71bcc8d",
+                            "InterfaceType": "interface"
+                        }
+                    ],
+                    "RootDeviceName": "/dev/xvda",
+                    "RootDeviceType": "ebs",
+                    "SecurityGroups": [
+                        {
+                            "GroupName": "stakki1-InstanceSecurityGroup-EYTXD5UJGZZJ",
+                            "GroupId": "sg-0e85dedd601fae854"
+                        }
+                    ],
+                    "SourceDestCheck": true,
+                    "Tags": [
+                        {
+                            "Key": "aws:cloudformation:logical-id",
+                            "Value": "EC2Instance"
+                        },
+                        {
+                            "Key": "aws:cloudformation:stack-name",
+                            "Value": "stakki1"
+                        },
+                        {
+                            "Key": "aws:cloudformation:stack-id",
+                            "Value": "arn:aws:cloudformation:eu-central-1:025876341083:stack/stakki1/fa78d4e0-8542-11ea-bdb4-06d8413a1460"
+                        }
+                    ],
+                    "VirtualizationType": "hvm",
+                    "CpuOptions": {
+                        "CoreCount": 2,
+                        "ThreadsPerCore": 2
+                    },
+                    "CapacityReservationSpecification": {
+                        "CapacityReservationPreference": "open"
+                    },
+                    "HibernationOptions": {
+                        "Configured": false
+                    },
+                    "MetadataOptions": {
+                        "State": "applied",
+                        "HttpTokens": "optional",
+                        "HttpPutResponseHopLimit": 1,
+                        "HttpEndpoint": "enabled"
+                    }
+                }
+            ],
+            "OwnerId": "025876341083",
+            "RequesterId": "119857478548",
+            "ReservationId": "r-08606e3993dcbfb97"
+        }
+    ]
+}
+#+end_example
+
+
+** List Running instances
+
+Short list of running ec2 instances
+
+#+BEGIN_SRC sh :eval no-export :results output 
+aws ec2 describe-instances | jq '.[][].Instances[] | select( .State.Name == "running" ) | { dns: .PublicDnsName, ami: .ImageId,  InstanceId: .InstanceId, state: .State.Name, InstanceType: .InstanceType }'
+#+END_SRC
+
+#+RESULTS:
+: {
+:   "dns": "ec2-3-122-60-85.eu-central-1.compute.amazonaws.com",
+:   "ami": "ami-0e29cd2e136f11293",
+:   "InstanceId": "i-0ee6b2c3f2811ac1d",
+:   "state": "running",
+:   "InstanceType": "g4dn.xlarge"
+: }
+
+
+** Show SSH connection
+
+Running instances
+#+BEGIN_SRC sh :eval no-export :results output :noweb yes
+echo <<ssh-ec2>> 
+#+END_SRC
+
+#+RESULTS:
+: ssh -i /home/jj/.ssh/marcus-frankfurt/marcus-franfurt.pem ec2-user@ec2-3-122-60-85.eu-central-1.compute.amazonaws.com
+: ssh -i /home/jj/.ssh/marcus-frankfurt/marcus-franfurt.pem ubuntu@ec2-3-122-60-85.eu-central-1.compute.amazonaws.com
+
+
+ #+BEGIN_SRC sh :eval no-export :results output :noweb yes
+ <<ssh-ec2>> 'echo Greets from $(hostname) in $(pwd)'
+ #+END_SRC
+
+ #+RESULTS:
+
+
+** Run docker =marcus2002/hello:1=
+
+ #+BEGIN_SRC sh :eval no-export :results output :noweb yes
+ <<ssh-ec2>> sudo docker run \
+      --user $(id -u):$(id -g) \
+       --net=host \
+       marcus2002/hello:1
+ #+END_SRC
+
+ #+RESULTS:
+ : Hello User 1000:1000 on ip-172-31-47-204.eu-central-1.compute.internal
+
+
+
+* Install docker =marcus2002/yolov3-tf2-training:$TAG=
+
+** gpu-checker usage
+
+Here just echo to allow copy-paste to terminal screen
+
+#+BEGIN_SRC sh :eval no-export :results output :noweb yes  :var TAG=docker-tag-number
+echo  nvidia-docker run  marcus2002/yolov3-tf2-training:$TAG python ../gpu-checker.py || true
+#+END_SRC
+
+
+Here run on remote machine:
+
+#+BEGIN_SRC sh :eval no-export :results output :noweb yes  :var TAG=docker-tag-number
+<<ssh-ec2>> nvidia-docker run  marcus2002/yolov3-tf2-training:$TAG python ../gpu-checker.py || true
+#+END_SRC
+
+#+RESULTS:
+: ../gpu-checker.py  -  tensorflow GPU tester usage
+: ../gpu-checker.py  cpu|gpu [0-9]|device NAME [0-9]|list|test|versions
+
+
+** gpu-checker test
+
+#+BEGIN_SRC sh :eval no-export :results output :noweb yes  :var TAG=docker-tag-number :noweb yes
+<<ssh-ec2>> nvidia-docker run --user $(id -u)  marcus2002/yolov3-tf2-training:$TAG python ../gpu-checker.py test
+#+END_SRC
+
+#+RESULTS:
+: tf.test.is_gpu_available()= True
+: tf.config.list_physical_devices('GPU')= [PhysicalDevice(name='/physical_device:GPU:0', device_type='GPU')]
+: tf.config.list_physical_devices('CPU')= [PhysicalDevice(name='/physical_device:CPU:0', device_type='CPU')]
+: tf.test.is_built_with_cuda()= True
+
+
+** gpu-cheker gpu 0 and cpu
+#+BEGIN_SRC sh :eval no-export :results output :noweb yes  :var TAG=docker-tag-number :noweb yes
+<<ssh-ec2>> docker run --user $(id -u)  marcus2002/yolov3-tf2-training:$TAG python ../gpu-checker.py gpu 0
+<<ssh-ec2>> docker run --user $(id -u)  marcus2002/yolov3-tf2-training:$TAG python ../gpu-checker.py cpu
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+device_name= /gpu:0
+c= tf.Tensor(
+[[22. 28.]
+ [49. 64.]], shape=(2, 2), dtype=float32)
+Device mapping:
+/job:localhost/replica:0/task:0/device:XLA_CPU:0 -> device: XLA_CPU device
+Using CPU
+c= tf.Tensor(
+[[22. 28.]
+ [49. 64.]], shape=(2, 2), dtype=float32)
+Device mapping:
+/job:localhost/replica:0/task:0/device:XLA_CPU:0 -> device: XLA_CPU device
+#+end_example
+
+
+* Training  and detection
+
+** Create remote data directories
+
+ #+BEGIN_SRC sh :eval no-export :results output :noweb yes
+   <<ssh-ec2>> mkdir checkpoints
+   <<ssh-ec2>> mkdir data
+   <<ssh-ec2>> mkdir voc.meta
+   <<ssh-ec2>> mkdir output
+   <<ssh-ec2>> mkdir logs
+ #+END_SRC
+
+ #+RESULTS:
+
+
+** Copy local data to EC2
+
+VOC2012 images and converted darknet weights in =$STAGE/data=
+-directory prepared previously in [[file:docker.org]]
+
+#+BEGIN_SRC sh :eval no-export :results output :var STAGE=stage-directory
+ls -ltr $STAGE/data
+#+END_SRC
+
+#+RESULTS:
+: total 3093792
+: -rw-r--r-- 1 root root  248070167 huhti 24 09:27 yolov3-cnv.tf.data-00000-of-00001
+: -rw-r--r-- 1 root root      24143 huhti 24 09:27 yolov3-cnv.tf.index
+: -rw-r--r-- 1 root root         83 huhti 24 09:27 checkpoint
+: -rw-r--r-- 1 jj   root  668674204 huhti 24 09:47 voc2012_train.tfrecord
+: -rw-r--r-- 1 jj   root  678662716 huhti 24 09:47 voc2012_val.tfrecord
+: -rw-rw-r-- 1 jj   jj   1572578623 huhti 24 10:36 yolov3.data.tgz
+
+Create comporessed tar file.
+
+#+BEGIN_SRC sh :eval no-export :results output :var STAGE=stage-directory 
+tar cvfz $STAGE/data/yolov3.data.tgz -C $STAGE/data ./yolov3-cnv.tf.data-00000-of-00001 ./yolov3-cnv.tf.index ./voc2012_train.tfrecord ./voc2012_val.tfrecord
+#+END_SRC
+
+#+RESULTS:
+: ./yolov3-cnv.tf.data-00000-of-00001
+: ./yolov3-cnv.tf.index
+: ./voc2012_train.tfrecord
+: ./voc2012_val.tfrecord
+
+Show data directory, epxect to seen newly created =yolov3.data.tgz=
+
+#+BEGIN_SRC sh :eval no-export :results output :var STAGE=stage-directory
+ls -ltr $STAGE/data
+#+END_SRC
+
+#+RESULTS:
+: total 3093792
+: -rw-r--r-- 1 root root  248070167 huhti 24 09:27 yolov3-cnv.tf.data-00000-of-00001
+: -rw-r--r-- 1 root root      24143 huhti 24 09:27 yolov3-cnv.tf.index
+: -rw-r--r-- 1 root root         83 huhti 24 09:27 checkpoint
+: -rw-r--r-- 1 jj   root  668674204 huhti 24 09:47 voc2012_train.tfrecord
+: -rw-r--r-- 1 jj   root  678662716 huhti 24 09:47 voc2012_val.tfrecord
+: -rw-rw-r-- 1 jj   jj   1572578623 huhti 27 11:30 yolov3.data.tgz
+
+Copy =yolov3.data.tgz= to remote machine. In this example, to SSH alias =franfurt=.
+
+#+BEGIN_SRC sh :eval no-export :results output :var STAGE=stage-directory
+scp $STAGE/data/yolov3.data.tgz frankfurt:.
+#+END_SRC
+
+#+RESULTS:
+
+Show transfer result
+
+#+BEGIN_SRC sh :eval no-export :results output :noweb yes
+<<ssh-ec2>> ls  -ltr  data
+<<ssh-ec2>> tar tvfz yolov3.data.tgz
+#+END_SRC
+
+#+RESULTS:
+: total 0
+: -rw-r--r-- root/root 248070167 2020-04-24 06:27 ./yolov3-cnv.tf.data-00000-of-00001
+: -rw-r--r-- root/root     24143 2020-04-24 06:27 ./yolov3-cnv.tf.index
+: -rw-r--r-- jj/root   668674204 2020-04-24 06:47 ./voc2012_train.tfrecord
+: -rw-r--r-- jj/root   678662716 2020-04-24 06:47 ./voc2012_val.tfrecord
+
+Extract trasfer file on remote
+
+#+BEGIN_SRC sh :eval no-export :results output :noweb yes
+<<ssh-ec2>> tar xvfz yolov3.data.tgz -C data .
+#+END_SRC
+
+#+RESULTS:
+: ./yolov3-cnv.tf.data-00000-of-00001
+: ./yolov3-cnv.tf.index
+: ./voc2012_train.tfrecord
+: ./voc2012_val.tfrecord
+
+Check remote directory
+
+#+BEGIN_SRC sh :eval no-export :results output :noweb yes
+<<ssh-ec2>> ls  -ltr  data
+#+END_SRC
+
+#+RESULTS:
+: total 1558048
+: -rw-r--r-- 1 ec2-user ec2-user     24143 24.4. 06:27 yolov3-cnv.tf.index
+: -rw-r--r-- 1 ec2-user ec2-user 248070167 24.4. 06:27 yolov3-cnv.tf.data-00000-of-00001
+: -rw-r--r-- 1 ec2-user ec2-user 668674204 24.4. 06:47 voc2012_train.tfrecord
+: -rw-r--r-- 1 ec2-user ec2-user 678662716 24.4. 06:47 voc2012_val.tfrecord
+
+
+Cleanup transfer file
+
+#+BEGIN_SRC sh :eval no-export :results output :noweb yes
+<<ssh-ec2>> rm -f yolov3.data.tgz
+#+END_SRC
+
+#+RESULTS:
+
+
+** Training session 1
+
+*** Start training session 1
+Inspect volume bidings seen in docker
+
+#+BEGIN_SRC sh :eval no-export :results output :var STAGE=remote-stage-directory :var TAG=docker-tag-number :noweb yes
+  <<ssh-ec2>> sudo nvidia-docker run \
+       --user $(id -u) \
+       --workdir /yolov3-tf2 \
+       --volume $STAGE/checkpoints:/yolov3-tf2/checkpoints \
+       --volume $STAGE/output:/yolov3-tf2/output \
+       --volume $STAGE/data:/yolov3-tf2/voc.data \
+       --volume $STAGE/logs:/yolov3-tf2/logs \
+       marcus2002/yolov3-tf2-training:$TAG \
+       ls -ltr voc.data data logs checkpoints
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+data:
+total 2420
+-rw-r--r-- 1 root root    135 Apr 24 05:06 voc2012.names
+-rw-r--r-- 1 root root 285600 Apr 24 05:06 street_out.jpg
+-rw-r--r-- 1 root root 465046 Apr 24 05:06 street.jpg
+-rw-r--r-- 1 root root 625129 Apr 24 05:06 meme_out.jpg
+-rw-r--r-- 1 root root   8875 Apr 24 05:06 meme2.jpeg
+-rw-r--r-- 1 root root 401910 Apr 24 05:06 meme.jpg
+-rw-r--r-- 1 root root 664559 Apr 24 05:06 girl.png
+-rw-r--r-- 1 root root    625 Apr 24 05:06 coco.names
+-rw-r--r-- 1 root root     75 Apr 24 05:06 checkpoint
+
+checkpoints:
+total 0
+
+logs:
+total 0
+
+voc.data:
+total 1558048
+-rw-r--r-- 1 1000 1000     24143 Apr 24 06:27 yolov3-cnv.tf.index
+-rw-r--r-- 1 1000 1000 248070167 Apr 24 06:27 yolov3-cnv.tf.data-00000-of-00001
+-rw-r--r-- 1 1000 1000 668674204 Apr 24 06:47 voc2012_train.tfrecord
+-rw-r--r-- 1 1000 1000 678662716 Apr 24 06:47 voc2012_val.tfrecord
+#+end_example
+
+
+Start training (here just echo command to paste it on terminal)
+
+#+BEGIN_SRC sh :eval no-export :results output :var STAGE=remote-stage-directory  :var TAG=docker-tag-number :noweb yes
+ <<ssh-ec2>>  echo sudo nvidia-docker run \
+       --workdir /yolov3-tf2 \
+       --volume $STAGE/data:/yolov3-tf2/voc.data \
+       --volume $STAGE/checkpoints:/yolov3-tf2/checkpoints \
+       --volume $STAGE/voc.meta:/yolov3-tf2/meta \
+       --volume $STAGE/output:/yolov3-tf2/output \
+       --volume $STAGE/logs:/yolov3-tf2/logs \
+       marcus2002/yolov3-tf2-training:$TAG \
+       python train.py \
+	--dataset ./voc.data/voc2012_train.tfrecord \
+	--val_dataset ./voc.data/voc2012_val.tfrecord \
+	--weights ./voc.data/yolov3-cnv.tf \
+	--classes ./data/voc2012.names \
+	--num_classes 20 \
+	--mode fit \
+        --transfer darknet \
+	--batch_size 16 \
+	--epochs 10 \
+	--weights_num_classes 80 
+#+END_SRC
+
+#+RESULTS:
+: sudo nvidia-docker run --workdir /yolov3-tf2 --volume /home/ec2-user/data:/yolov3-tf2/voc.data --volume /home/ec2-user/checkpoints:/yolov3-tf2/checkpoints --volume /home/ec2-user/voc.meta:/yolov3-tf2/meta --volume /home/ec2-user/output:/yolov3-tf2/output --volume /home/ec2-user/logs:/yolov3-tf2/logs marcus2002/yolov3-tf2-training:1 python train.py --dataset ./voc.data/voc2012_train.tfrecord --val_dataset ./voc.data/voc2012_val.tfrecord --weights ./voc.data/yolov3-cnv.tf --classes ./data/voc2012.names --num_classes 20 --mode fit --transfer darknet --batch_size 16 --epochs 10 --weights_num_classes 80
+
+
+*** Launch tensorboard
+
+Using echo to create command to paste on terminal
+
+#+BEGIN_SRC sh :eval no-export :results output :var STAGE=remote-stage-directory  :var TAG=docker-tag-number :noweb yes
+ <<ssh-ec2>>  echo sudo nvidia-docker run \
+       --user $(id -u) \
+       --workdir /yolov3-tf2 \
+       --volume $STAGE/data:/yolov3-tf2/voc.data \
+       --volume $STAGE/checkpoints:/yolov3-tf2/checkpoints \
+       --volume $STAGE/output:/yolov3-tf2/output \
+       --volume $STAGE/logs:/yolov3-tf2/logs \
+       --net host \
+       --rm -it \
+       marcus2002/yolov3-tf2-training:$TAG \
+           tensorboard \
+              --logdir /yolov3-tf2/logs
+#+END_SRC
+
+#+RESULTS:
+: sudo nvidia-docker run --user 1000 --workdir /yolov3-tf2 --volume /home/ec2-user/data:/yolov3-tf2/voc.data --volume /home/ec2-user/checkpoints:/yolov3-tf2/checkpoints --volume /home/ec2-user/output:/yolov3-tf2/output --volume /home/ec2-user/logs:/yolov3-tf2/logs --net host --rm -it marcus2002/yolov3-tf2-training:1 tensorboard --logdir /yolov3-tf2/logs
+
+Launch ssh connection to tunnel tensorboard default port to localhost
+
+#+name: yolov3-tf2-board-ssh
+#+BEGIN_SRC sh :eval no-export :results output :noweb yes
+  # This example takes ssh connection to $REMOTE and creates a tunnel
+  # for tensorboard default port 6006 --> 16006.  Here using
+  # REMOTE=frankfurt
+  export REMOTE=frankfurt; ssh -L 16006:localhost:6006 $REMOTE
+#+END_SRC
+
+#+RESULTS: yolov3-tf2-board-ssh
+
+Browse to to use the c
+http://localhost:16006
+
+
+
+
+
+
+*** Session 1: early stopping
+
+#+begin_example
+Epoch 00008: saving model to checkpoints/yolov3_train_8.tf
+358/358 [==============================] - 334s 932ms/step - loss: 16.7991 - yolo_output_0_loss: 1.5778 - yolo_output_1_loss: 1.8891 - yolo_output_2_loss: 2.2678 - val_loss: 24.0688 - val_yolo_output_0_loss: 5.5626 - val_yolo_output_1_loss: 4.9282 - val_yolo_output_2_loss: 2.5046 - lr: 0.0010
+Epoch 00008: early stopping
+
+#+end_example
+
+Checkpoints created
+
+#+BEGIN_SRC sh :eval no-export :results output :var STAGE=remote-stage-directory  :var TAG=docker-tag-number :noweb yes
+<<ssh-ec2>> ls -ltr checkpoints
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+total 3243524
+-rw-r--r-- 1 root root     85875 27.4. 09:00 yolov3_train_1.tf.data-00000-of-00002
+-rw-r--r-- 1 root root 415043620 27.4. 09:00 yolov3_train_1.tf.data-00001-of-00002
+-rw-r--r-- 1 root root     35394 27.4. 09:00 yolov3_train_1.tf.index
+-rw-r--r-- 1 root root     85875 27.4. 09:06 yolov3_train_2.tf.data-00000-of-00002
+-rw-r--r-- 1 root root 415043620 27.4. 09:06 yolov3_train_2.tf.data-00001-of-00002
+-rw-r--r-- 1 root root     35394 27.4. 09:06 yolov3_train_2.tf.index
+-rw-r--r-- 1 root root     85875 27.4. 09:11 yolov3_train_3.tf.data-00000-of-00002
+-rw-r--r-- 1 root root 415043620 27.4. 09:11 yolov3_train_3.tf.data-00001-of-00002
+-rw-r--r-- 1 root root     35394 27.4. 09:11 yolov3_train_3.tf.index
+-rw-r--r-- 1 root root     85875 27.4. 09:17 yolov3_train_4.tf.data-00000-of-00002
+-rw-r--r-- 1 root root 415043620 27.4. 09:17 yolov3_train_4.tf.data-00001-of-00002
+-rw-r--r-- 1 root root     35394 27.4. 09:17 yolov3_train_4.tf.index
+-rw-r--r-- 1 root root     85875 27.4. 09:23 yolov3_train_5.tf.data-00000-of-00002
+-rw-r--r-- 1 root root 415043620 27.4. 09:23 yolov3_train_5.tf.data-00001-of-00002
+-rw-r--r-- 1 root root     35394 27.4. 09:23 yolov3_train_5.tf.index
+-rw-r--r-- 1 root root     85875 27.4. 09:28 yolov3_train_6.tf.data-00000-of-00002
+-rw-r--r-- 1 root root 415043620 27.4. 09:28 yolov3_train_6.tf.data-00001-of-00002
+-rw-r--r-- 1 root root     35394 27.4. 09:28 yolov3_train_6.tf.index
+-rw-r--r-- 1 root root     85875 27.4. 09:34 yolov3_train_7.tf.data-00000-of-00002
+-rw-r--r-- 1 root root     35394 27.4. 09:34 yolov3_train_7.tf.index
+-rw-r--r-- 1 root root 415043620 27.4. 09:34 yolov3_train_7.tf.data-00001-of-00002
+-rw-r--r-- 1 root root     85875 27.4. 09:39 yolov3_train_8.tf.data-00000-of-00002
+-rw-r--r-- 1 root root 415043620 27.4. 09:39 yolov3_train_8.tf.data-00001-of-00002
+-rw-r--r-- 1 root root     35394 27.4. 09:39 yolov3_train_8.tf.index
+-rw-r--r-- 1 root root        91 27.4. 09:39 checkpoint
+#+end_example
+
+
+*** Session 1: tensorboard results
+
+[[file:tensorboard-early-stopping-epoch8.pdf]]
+
+
+*** Run detect using epoch 7 (=last successfull epoch)
+
+ #+BEGIN_SRC sh :eval no-export :results output :var STAGE=remote-stage-directory  :var TAG=docker-tag-number :noweb yes
+ <<ssh-ec2>>   nvidia-docker run \
+        --user $(id -u) \
+        --workdir /yolov3-tf2 \
+        --volume $STAGE/checkpoints:/yolov3-tf2/checkpoints \
+        --volume $STAGE/data:/yolov3-tf2/voc.data \
+        --volume $STAGE/output:/yolov3-tf2/output \
+        marcus2002/yolov3-tf2-training:$TAG \
+        python detect.py \
+           	 --classes ./data/voc2012.names \
+	         --num_classes 20 \
+                      --weights ./checkpoints/yolov3_train_7.tf \
+                      --image  ./data/street.jpg \
+                      --output ./output/early-stopping-epoch7.jpg
+ #+END_SRC
+
+ #+RESULTS:
+
+ [[/ssh:frankfurt:/home/ec2-user/output/early-stopping-epoch7.jpg]]  [[pics/early-stopping-epoch7.jpg]]
+
+Notes:
+- two bussess identified
+- no persons
+
+
+
+*** Run detect using epoch 8 (=epoch interrepted)
+
+ #+BEGIN_SRC sh :eval no-export :results output :var STAGE=remote-stage-directory  :var TAG=docker-tag-number :noweb yes
+ <<ssh-ec2>>   nvidia-docker run \
+        --user $(id -u) \
+        --workdir /yolov3-tf2 \
+        --volume $STAGE/checkpoints:/yolov3-tf2/checkpoints \
+        --volume $STAGE/data:/yolov3-tf2/voc.data \
+        --volume $STAGE/output:/yolov3-tf2/output \
+        marcus2002/yolov3-tf2-training:$TAG \
+        python detect.py \
+           	 --classes ./data/voc2012.names \
+	         --num_classes 20 \
+                      --weights ./checkpoints/yolov3_train_8.tf \
+                      --image  ./data/street.jpg \
+                      --output ./output/early-stopping-epoch8.jpg
+ #+END_SRC
+
+ #+RESULTS:
+
+ [[/ssh:frankfurt:/home/ec2-user/output/early-stopping-epoch8.jpg]]  [[file:pics/early-stopping-epoch8.jpg][local early-stopping-epoch8.jpg]]
+
+Notes:
+- no busses
+- two persons
+- one car
+
+
+
+** Train session 2
+
+*** Prepare training session2
+
+
+**** Copy =checkpoints/yolov3_train_EPOC.tf= weight to =data/cont_20.tf= for EPOC=8.
+
+ Show checkpoints directory
+ #+BEGIN_SRC sh :eval no-export :results output :var STAGE=remote-stage-directory :var TAG=docker-tag-number :noweb yes
+   <<ssh-ec2>> ls -ltr checkpoints 
+ #+END_SRC
+
+ #+RESULTS:
+ #+begin_example
+ total 3243524
+ -rw-r--r-- 1 root root     85875 27.4. 09:00 yolov3_train_1.tf.data-00000-of-00002
+ -rw-r--r-- 1 root root 415043620 27.4. 09:00 yolov3_train_1.tf.data-00001-of-00002
+ -rw-r--r-- 1 root root     35394 27.4. 09:00 yolov3_train_1.tf.index
+ -rw-r--r-- 1 root root     85875 27.4. 09:06 yolov3_train_2.tf.data-00000-of-00002
+ -rw-r--r-- 1 root root 415043620 27.4. 09:06 yolov3_train_2.tf.data-00001-of-00002
+ -rw-r--r-- 1 root root     35394 27.4. 09:06 yolov3_train_2.tf.index
+ -rw-r--r-- 1 root root     85875 27.4. 09:11 yolov3_train_3.tf.data-00000-of-00002
+ -rw-r--r-- 1 root root 415043620 27.4. 09:11 yolov3_train_3.tf.data-00001-of-00002
+ -rw-r--r-- 1 root root     35394 27.4. 09:11 yolov3_train_3.tf.index
+ -rw-r--r-- 1 root root     85875 27.4. 09:17 yolov3_train_4.tf.data-00000-of-00002
+ -rw-r--r-- 1 root root 415043620 27.4. 09:17 yolov3_train_4.tf.data-00001-of-00002
+ -rw-r--r-- 1 root root     35394 27.4. 09:17 yolov3_train_4.tf.index
+ -rw-r--r-- 1 root root     85875 27.4. 09:23 yolov3_train_5.tf.data-00000-of-00002
+ -rw-r--r-- 1 root root 415043620 27.4. 09:23 yolov3_train_5.tf.data-00001-of-00002
+ -rw-r--r-- 1 root root     35394 27.4. 09:23 yolov3_train_5.tf.index
+ -rw-r--r-- 1 root root     85875 27.4. 09:28 yolov3_train_6.tf.data-00000-of-00002
+ -rw-r--r-- 1 root root 415043620 27.4. 09:28 yolov3_train_6.tf.data-00001-of-00002
+ -rw-r--r-- 1 root root     35394 27.4. 09:28 yolov3_train_6.tf.index
+ -rw-r--r-- 1 root root     85875 27.4. 09:34 yolov3_train_7.tf.data-00000-of-00002
+ -rw-r--r-- 1 root root     35394 27.4. 09:34 yolov3_train_7.tf.index
+ -rw-r--r-- 1 root root 415043620 27.4. 09:34 yolov3_train_7.tf.data-00001-of-00002
+ -rw-r--r-- 1 root root     85875 27.4. 09:39 yolov3_train_8.tf.data-00000-of-00002
+ -rw-r--r-- 1 root root 415043620 27.4. 09:39 yolov3_train_8.tf.data-00001-of-00002
+ -rw-r--r-- 1 root root     35394 27.4. 09:39 yolov3_train_8.tf.index
+ -rw-r--r-- 1 root root        91 27.4. 09:39 checkpoint
+ #+end_example
+
+ #+BEGIN_SRC sh :eval no-export :results output :var STAGE=remote-stage-directory :var TAG=docker-tag-number :noweb yes
+   <<ssh-ec2>> cp checkpoints/yolov3_train_8.tf.data-00000-of-00002 data/cont_20.tf.data-00000-of-00002
+   <<ssh-ec2>> cp checkpoints/yolov3_train_8.tf.data-00001-of-00002 data/cont_20.tf.data-00001-of-00002
+   <<ssh-ec2>> cp checkpoints/yolov3_train_8.tf.index data/cont_20.tf.index
+ #+END_SRC
+
+ #+RESULTS:
+
+ Show =data= directory state
+
+ #+BEGIN_SRC sh :eval no-export :results output :var STAGE=remote-stage-directory :var TAG=docker-tag-number :noweb yes
+   <<ssh-ec2>> ls -ltr  data
+ #+END_SRC
+
+
+ #+RESULTS:
+ : total 1963488
+ : -rw-r--r-- 1 ec2-user ec2-user     24143 24.4. 06:27 yolov3-cnv.tf.index
+ : -rw-r--r-- 1 ec2-user ec2-user 248070167 24.4. 06:27 yolov3-cnv.tf.data-00000-of-00001
+ : -rw-r--r-- 1 ec2-user ec2-user 668674204 24.4. 06:47 voc2012_train.tfrecord
+ : -rw-r--r-- 1 ec2-user ec2-user 678662716 24.4. 06:47 voc2012_val.tfrecord
+ : -rw-r--r-- 1 ec2-user ec2-user     85875 27.4. 10:15 cont_20.tf.data-00000-of-00002
+ : -rw-r--r-- 1 ec2-user ec2-user 415043620 27.4. 10:15 cont_20.tf.data-00001-of-00002
+ : -rw-r--r-- 1 ec2-user ec2-user     35394 27.4. 10:15 cont_20.tf.index
+
+ #+END_SRC
+
+ #+RESULTS:
+
+
+****  Cleanup checkpoints
+
+ #+BEGIN_SRC sh :eval no-export :results output :var STAGE=remote-stage-directory :var TAG=docker-tag-number :noweb yes
+   <<ssh-ec2>> rm -f $STAGE/checkpoints/* $STAGE/logs/*
+   <<ssh-ec2>> ls -ltr $STAGE/checkpoints $STAGE/data $STAGE/logs
+ #+END_SRC
+
+ #+RESULTS:
+ #+begin_example
+ /home/ec2-user/logs:
+ total 0
+ drwxr-xr-x 3 root root 148 27.4. 08:55 train
+ drwxr-xr-x 2 root root  68 27.4. 09:00 validation
+
+ /home/ec2-user/data:
+ total 1963488
+ -rw-r--r-- 1 ec2-user ec2-user     24143 24.4. 06:27 yolov3-cnv.tf.index
+ -rw-r--r-- 1 ec2-user ec2-user 248070167 24.4. 06:27 yolov3-cnv.tf.data-00000-of-00001
+ -rw-r--r-- 1 ec2-user ec2-user 668674204 24.4. 06:47 voc2012_train.tfrecord
+ -rw-r--r-- 1 ec2-user ec2-user 678662716 24.4. 06:47 voc2012_val.tfrecord
+ -rw-r--r-- 1 ec2-user ec2-user     85875 27.4. 10:15 cont_20.tf.data-00000-of-00002
+ -rw-r--r-- 1 ec2-user ec2-user 415043620 27.4. 10:15 cont_20.tf.data-00001-of-00002
+ -rw-r--r-- 1 ec2-user ec2-user     35394 27.4. 10:15 cont_20.tf.index
+
+ /home/ec2-user/checkpoints:
+ total 0
+ #+end_example
+
+
+*** Session 2: continue using fine-tuning with weigth count 20
+
+ #+BEGIN_SRC sh :eval no-export :results output :var STAGE=remote-stage-directory  :var TAG=docker-tag-number :noweb yes
+  <<ssh-ec2>>  echo sudo nvidia-docker run \
+        --workdir /yolov3-tf2 \
+        --volume $STAGE/data:/yolov3-tf2/voc.data \
+        --volume $STAGE/checkpoints:/yolov3-tf2/checkpoints \
+        --volume $STAGE/voc.meta:/yolov3-tf2/meta \
+        --volume $STAGE/output:/yolov3-tf2/output \
+        --volume $STAGE/logs:/yolov3-tf2/logs \
+        marcus2002/yolov3-tf2-training:$TAG \
+        python train.py \
+	 --dataset ./voc.data/voc2012_train.tfrecord \
+	 --val_dataset ./voc.data/voc2012_val.tfrecord \
+	 --weights ./voc.data/cont_20.tf \
+	 --classes ./data/voc2012.names \
+	 --num_classes 20 \
+	 --mode fit \
+         --transfer fine_tune \
+	 --batch_size 16 \
+	 --epochs 10 \
+	 --weights_num_classes 20 
+ #+END_SRC
+
+ #+RESULTS:
+ : sudo nvidia-docker run --workdir /yolov3-tf2 --volume /home/ec2-user/data:/yolov3-tf2/voc.data --volume /home/ec2-user/checkpoints:/yolov3-tf2/checkpoints --volume /home/ec2-user/voc.meta:/yolov3-tf2/meta --volume /home/ec2-user/output:/yolov3-tf2/output --volume /home/ec2-user/logs:/yolov3-tf2/logs marcus2002/yolov3-tf2-training:1 python train.py --dataset ./voc.data/voc2012_train.tfrecord --val_dataset ./voc.data/voc2012_val.tfrecord --weights ./voc.data/cont_20.tf --classes ./data/voc2012.names --num_classes 20 --mode fit --transfer fine_tune --batch_size 16 --epochs 10 --weights_num_classes 20
+
+
+*** End of  training session 2 =early stopping=
+
+#+BEGIN_SRC sh :eval no-export :results output :noweb yes
+<<ssh-ec2>>   ls -ltr checkpoints
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+total 1621764
+-rw-r--r-- 1 root root     85875 27.4. 10:29 yolov3_train_1.tf.data-00000-of-00002
+-rw-r--r-- 1 root root 415043620 27.4. 10:29 yolov3_train_1.tf.data-00001-of-00002
+-rw-r--r-- 1 root root     35394 27.4. 10:29 yolov3_train_1.tf.index
+-rw-r--r-- 1 root root     85875 27.4. 10:35 yolov3_train_2.tf.data-00000-of-00002
+-rw-r--r-- 1 root root 415043620 27.4. 10:35 yolov3_train_2.tf.data-00001-of-00002
+-rw-r--r-- 1 root root     35394 27.4. 10:35 yolov3_train_2.tf.index
+-rw-r--r-- 1 root root     85875 27.4. 10:40 yolov3_train_3.tf.data-00000-of-00002
+-rw-r--r-- 1 root root 415043620 27.4. 10:40 yolov3_train_3.tf.data-00001-of-00002
+-rw-r--r-- 1 root root     35394 27.4. 10:40 yolov3_train_3.tf.index
+-rw-r--r-- 1 root root     85875 27.4. 10:46 yolov3_train_4.tf.data-00000-of-00002
+-rw-r--r-- 1 root root 415043620 27.4. 10:46 yolov3_train_4.tf.data-00001-of-00002
+-rw-r--r-- 1 root root     35394 27.4. 10:46 yolov3_train_4.tf.index
+-rw-r--r-- 1 root root        91 27.4. 10:46 checkpoint
+#+end_example
+
+
+
+*** Detect after training session 2
+
+**** Detect using session 2/epoch 3
+
+#+BEGIN_SRC sh :eval no-export :results output :var STAGE=remote-stage-directory  :var TAG=docker-tag-number :noweb yes
+<<ssh-ec2>>   nvidia-docker run \
+       --user $(id -u) \
+       --workdir /yolov3-tf2 \
+       --volume $STAGE/checkpoints:/yolov3-tf2/checkpoints \
+       --volume $STAGE/data:/yolov3-tf2/voc.data \
+       --volume $STAGE/output:/yolov3-tf2/output \
+       marcus2002/yolov3-tf2-training:$TAG \
+       python detect.py \
+           	--classes ./data/voc2012.names \
+	        --num_classes 20 \
+                     --weights ./checkpoints/yolov3_train_3.tf \
+                     --image  ./data/street.jpg \
+                     --output ./output/cont_20_epoch3.jpg
+#+END_SRC
+
+#+RESULTS:
+
+Remote link 
+[[/ssh:frankfurt:/home/ec2-user/output/cont_20_epoch3.jpg][remote cont_20_epoch3.jpg]] [[pics/cont_20_epoch3.jpg]]
+
+
+
+Notes:
+- both busses found
+- car found
+- three persons found, several persons missed
+
+
+**** Detect using session 2/epoch 4
+
+#+BEGIN_SRC sh :eval no-export :results output :var STAGE=remote-stage-directory  :var TAG=docker-tag-number :noweb yes
+<<ssh-ec2>>   nvidia-docker run \
+       --user $(id -u) \
+       --workdir /yolov3-tf2 \
+       --volume $STAGE/checkpoints:/yolov3-tf2/checkpoints \
+       --volume $STAGE/data:/yolov3-tf2/voc.data \
+       --volume $STAGE/output:/yolov3-tf2/output \
+       marcus2002/yolov3-tf2-training:$TAG \
+       python detect.py \
+           	--classes ./data/voc2012.names \
+	        --num_classes 20 \
+                     --weights ./checkpoints/yolov3_train_4.tf \
+                     --image  ./data/street.jpg \
+                     --output ./output/cont_20_epoch4.jpg
+#+END_SRC
+
+#+RESULTS:
+
+Notes:
+- one bus found, one bus and car los
+- two persons found, person lost
+- worse than epoch 3
+
+[[/ssh:frankfurt:/home/ec2-user/output/cont_20_epoch4.jpg]]   [[pics/cont_20_epoch4.jpg]]
+
+
+** Copy trained weights
+
+*** Copy from session1 weights =data/cont_20.tf.*= to local =$STAGE/data/=
+
+#+BEGIN_SRC sh :eval no-export :results output :var STAGE=stage-directory
+scp frankfurt:data/cont_20.tf.* $STAGE/data/
+#+END_SRC
+
+#+RESULTS:
+
+Show files in local =$STAGE/data= -directory 
+
+#+BEGIN_SRC sh :eval no-export :results output :var STAGE=stage-directory
+ls -ltr $STAGE/data
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+total 3499236
+-rw-r--r-- 1 root root  248070167 huhti 24 09:27 yolov3-cnv.tf.data-00000-of-00001
+-rw-r--r-- 1 root root      24143 huhti 24 09:27 yolov3-cnv.tf.index
+-rw-r--r-- 1 root root         83 huhti 24 09:27 checkpoint
+-rw-r--r-- 1 jj   root  668674204 huhti 24 09:47 voc2012_train.tfrecord
+-rw-r--r-- 1 jj   root  678662716 huhti 24 09:47 voc2012_val.tfrecord
+-rw-rw-r-- 1 jj   jj   1572578623 huhti 27 11:30 yolov3.data.tgz
+-rw-r--r-- 1 jj   jj        85875 huhti 27 13:27 cont_20.tf.data-00000-of-00002
+-rw-r--r-- 1 jj   jj    415043620 huhti 27 13:28 cont_20.tf.data-00001-of-00002
+-rw-r--r-- 1 jj   jj        35394 huhti 27 13:28 cont_20.tf.index
+#+end_example
+
+
+Use =cont_20.tf= on local machine. *Notice* using non default num_classes and classes
+
+#+name: yolov3-tf2-detect
+#+BEGIN_SRC sh :eval no-export :results output :var STAGE=stage-directory :var TAG=docker-tag-number
+  docker run \
+         --user $(id -u) \
+         --workdir /yolov3-tf2 \
+         --volume $STAGE/data:/yolov3-tf2/voc.data \
+         --volume $STAGE/output:/yolov3-tf2/output \
+         marcus2002/yolov3-tf2-training:$TAG \
+         python detect.py \
+              --num_classes 20 \
+              --classes ./data/voc2012.names \
+              --weights ./voc.data/cont_20.tf \
+              --image ./data/street.jpg \
+              --output ./output/cont_20-street.jpg
+#+END_SRC
+
+#+RESULTS: yolov3-tf2-detect
+
+[[~/stage/yolov3-tf2/output/cont_20-street.jpg]]
+
+
+*** Copy session2/epoch 3 weights
+
+#+BEGIN_SRC sh :eval no-export :results output :var STAGE=stage-directory
+scp frankfurt:checkpoints/yolov3_train_3.tf.* $STAGE/weights
+ls -ltr $STAGE/weights
+#+END_SRC
+
+#+RESULTS:
+: total 647636
+: -rw-rw-r-- 1 jj jj 248007048 huhti  8 15:50 yolov3.weights
+: -rw-r--r-- 1 jj jj     85875 huhti 27 14:03 yolov3_train_3.tf.data-00000-of-00002
+: -rw-r--r-- 1 jj jj 415043620 huhti 27 14:04 yolov3_train_3.tf.data-00001-of-00002
+: -rw-r--r-- 1 jj jj     35394 huhti 27 14:04 yolov3_train_3.tf.index
+
+
+
+** Running detect.py locally using darknet  weights
+
+#+BEGIN_SRC sh :eval no-export :results output :var STAGE=stage-directory :var TAG=docker-tag-number
+  docker run \
+       --user $(id -u) \
+       --workdir /yolov3-tf2 \
+       --volume $STAGE/data:/yolov3-tf2/voc.data \
+       --volume $(pwd)/pics:/yolov3-tf2/output \
+       marcus2002/yolov3-tf2-training:$TAG \
+       python detect.py \
+                     --weights ./voc.data/yolov3-cnv.tf \
+                     --image ./data/street.jpg \
+                     --output ./output/darknet-street.jpg
+#+END_SRC
+
+#+RESULTS:
+   
+[[file:pics/darknet-street.jpg]]
+
+
+* *IMPORTANT* Delete stack =stakki1=
+
+#+BEGIN_SRC sh :eval no-export :results output
+aws cloudformation delete-stack --stack-name stakki1
+#+END_SRC
+
+#+RESULTS:
+
+*Ensure nothing there!!*
+
+#+BEGIN_SRC sh :eval no-export :results output
+aws cloudformation describe-stacks
+aws ec2 describe-instances | jq '.[][].Instances[] |  { dns: .PublicDnsName, ami: .ImageId,  InstanceId: .InstanceId, state: .State }'
+#+END_SRC
+
+
+#+RESULTS:
+#+begin_example
+{
+    "Stacks": [
+        {
+            "StackId": "arn:aws:cloudformation:eu-central-1:025876341083:stack/stakki1/227d0230-885f-11ea-8a06-0264b9b54242",
+            "StackName": "stakki1",
+            "CreationTime": "2020-04-27T08:14:37.108000+00:00",
+            "DeletionTime": "2020-04-27T11:04:36.967000+00:00",
+            "RollbackConfiguration": {},
+            "StackStatus": "DELETE_IN_PROGRESS",
+            "DisableRollback": true,
+            "NotificationARNs": [],
+            "Capabilities": [
+                "CAPABILITY_IAM"
+            ],
+            "Tags": [],
+            "DriftInformation": {
+                "StackDriftStatus": "NOT_CHECKED"
+            }
+        }
+    ]
+}
+{
+  "dns": "",
+  "ami": "ami-0e29cd2e136f11293",
+  "InstanceId": "i-0ee6b2c3f2811ac1d",
+  "state": {
+    "Code": 48,
+    "Name": "terminated"
+  }
+}
+#+end_example
+
+
+* Fin                                                              :noexport:
+
+** Emacs variables
+
+#+RESULTS:
+
+# Local Variables:
+# org-confirm-babel-evaluate: nil
+# conda-project-env-name: tsr
+# End:
+
+
