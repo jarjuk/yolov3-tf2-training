@@ -9,7 +9,7 @@ Create Docker container for [[https://github.com/zzh8829/yolov3-tf2][YoloV3 algo
 :CONTENTS:
 - [[#architecture][Architecture]]
 - [[#training-sessions][Training sessions]]
-- [[#some-benchmark-information][Some benchmark information]]
+- [[#some-benchmark-results][Some benchmark results]]
 - [[#training-session-results][Training session results]]
 - [[#tools-and-versions][Tools and versions]]
 :END:
